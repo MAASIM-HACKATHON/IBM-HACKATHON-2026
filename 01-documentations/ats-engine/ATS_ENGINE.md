@@ -1,4 +1,3 @@
-````markdown
 # ATS Scoring Engine Prompt (BOB-Compliant Version)
 
 ## Overview
@@ -191,6 +190,3 @@ If information is missing:
 ## System Goal
 
 Produce consistent, schema-compliant ATS evaluations that integrate directly into the BOB system without requiring post-processing or validation fixes.
-
-```
-```
