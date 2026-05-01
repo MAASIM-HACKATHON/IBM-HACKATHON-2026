@@ -1,9 +1,7 @@
+import EmailComposer from '../../components/system-components/EmailComposer';
+
 function HomePage(): JSX.Element {
-  return (
-    <div>
-      <h1>Home Page</h1>
-    </div>
-  );
+  return <EmailComposer />;
 }
 
 export default HomePage;

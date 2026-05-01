@@ -22,6 +22,24 @@ model User {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  emails    Email[]
 
   @@map("users")
+}
+
+// Email Model - Store generated emails
+model Email {
+  id              Int      @id @default(autoincrement())
+  userId          Int?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalText    String   @db.Text
+  generatedEmail  String   @db.Text
+  subject         String?
+  tone            String   // formal, friendly, urgent, casual
+  action          String   // generate, shorten, expand, fix_grammar
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("emails")
+  @@index([userId])
 }
