@@ -1,0 +1,10 @@
+# bob-system/.bob/config.yaml
+
+auto_approve:
+  enabled: false
+
+suggestions:
+  max_per_turn: 2
+
+token_budget:
+  per_request: 700
