@@ -5,8 +5,8 @@ function HomePage(): ReactElement {
   const navigate = useNavigate();
 
   return (
-    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-12 pb-16">
+    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10 xl:px-12">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-12 pb-16">
         {/* Header Section */}
         <section className="text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-100">

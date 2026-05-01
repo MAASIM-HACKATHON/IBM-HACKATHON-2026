@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactElement, type ClipboardEvent } from 'react';
+import { useState, useEffect, type FormEvent, type ReactElement, type ClipboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -11,12 +11,59 @@ import { useWatsonxEmailGenerator } from '../../hooks/useWatsonxEmailGenerator';
 import type { EmailFormValues } from '../../utilities/system-utils/emailGenerator';
 import { analyzeContent } from '../../utilities/system-utils/contentAnalyzer';
 
+const DRAFT_STORAGE_KEY = 'email-composer-draft';
+const DRAFT_TIMESTAMP_KEY = 'email-composer-draft-timestamp';
+
 function EmailComposerPage(): ReactElement {
   const navigate = useNavigate();
-  const [formValues, setFormValues] = useState<EmailFormValues>(DEFAULT_EMAIL_FORM_VALUES);
+  const [formValues, setFormValues] = useState<EmailFormValues>(() => {
+    // Load draft from localStorage on initial render
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft) as EmailFormValues;
+        const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
+        
+        // Show toast notification if draft was loaded
+        if (timestamp) {
+          const savedDate = new Date(timestamp);
+          setTimeout(() => {
+            toast.success(`📝 Draft restored from ${savedDate.toLocaleString()}`, { duration: 4000 });
+          }, 500);
+        }
+        
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+    }
+    return DEFAULT_EMAIL_FORM_VALUES;
+  });
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(() => {
+    const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
+    return timestamp ? new Date(timestamp) : null;
+  });
+  
   const { error, generateDraft, loading, metadata, reset, result } =
     useWatsonxEmailGenerator();
+
+  // Auto-save draft to localStorage whenever form values change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formValues));
+        const now = new Date();
+        localStorage.setItem(DRAFT_TIMESTAMP_KEY, now.toISOString());
+        setLastSaved(now);
+      } catch (error) {
+        console.error('Failed to save draft:', error);
+      }
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+  }, [formValues]);
 
   const updateField = <TField extends keyof EmailFormValues>(
     field: TField,
@@ -26,6 +73,17 @@ function EmailComposerPage(): ReactElement {
       ...currentValues,
       [field]: value,
     }));
+  };
+
+  const clearDraft = (): void => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      localStorage.removeItem(DRAFT_TIMESTAMP_KEY);
+      setLastSaved(null);
+      toast.success('Draft cleared');
+    } catch (error) {
+      console.error('Failed to clear draft:', error);
+    }
   };
 
   const handleKeyPointsPaste = async (event: ClipboardEvent<HTMLTextAreaElement>): Promise<void> => {
@@ -99,6 +157,7 @@ function EmailComposerPage(): ReactElement {
   const handleReset = (): void => {
     setFormValues(DEFAULT_EMAIL_FORM_VALUES);
     reset();
+    clearDraft();
     toast.success('Form reset successfully');
   };
 
@@ -125,8 +184,8 @@ function EmailComposerPage(): ReactElement {
   };
 
   return (
-    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-16">
+    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10 xl:px-12">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
         {/* Back Button */}
         <div className="flex items-center gap-4">
           <button
@@ -235,9 +294,14 @@ function EmailComposerPage(): ReactElement {
             onSubmit={handleSubmit}
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">Input layer</p>
                 <h2 className="mt-3 text-2xl font-semibold text-white">Watsonx email test form</h2>
+                {lastSaved && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    💾 Draft auto-saved at {lastSaved.toLocaleTimeString()}
+                  </p>
+                )}
               </div>
               <button
                 className="rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"

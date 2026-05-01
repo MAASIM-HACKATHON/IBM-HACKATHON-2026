@@ -5,8 +5,8 @@ function ResumeBuilderPage(): ReactElement {
   const navigate = useNavigate();
 
   return (
-    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 pb-16">
+    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10 xl:px-12">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
         {/* Header with Back Button */}
         <div className="flex items-center gap-4">
           <button
