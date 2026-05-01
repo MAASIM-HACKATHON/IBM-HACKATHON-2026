@@ -1,0 +1,30 @@
+# =========================
+# SECRETS (CRITICAL)
+# =========================
+.env
+config/secrets.json
+*.key
+*.pem
+
+# =========================
+# LARGE / COSTLY FILES
+# =========================
+node_modules/
+build/
+dist/
+*.log
+*.zip
+*.tar.gz
+
+# =========================
+# DOCUMENTATION (IGNORE TO SAVE BOBCOINS)
+# =========================
+01-documentations/
+
+# =========================
+# KEEP IMPORTANT FILES
+# =========================
+!README.md
+!core/
+!intelligence/
+!demo/
