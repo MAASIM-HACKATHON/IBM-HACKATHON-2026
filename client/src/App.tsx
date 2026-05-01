@@ -1,6 +1,9 @@
 import { Toaster } from 'react-hot-toast';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import HomePage from './pages/system-page/HomePage';
+import EmailComposerPage from './pages/system-page/EmailComposerPage';
+import ResumeBuilderPage from './pages/system-page/ResumeBuilderPage';
 
 function App(): JSX.Element {
   return (
@@ -30,7 +33,13 @@ function App(): JSX.Element {
           },
         }}
       />
-      <HomePage />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/email-composer" element={<EmailComposerPage />} />
+          <Route path="/resume-builder" element={<ResumeBuilderPage />} />
+        </Routes>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
