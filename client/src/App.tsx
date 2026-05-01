@@ -1,6 +1,7 @@
+import type { ReactElement } from 'react';
 import HomePage from './pages/system-page/HomePage';
 
-function App(): JSX.Element {
+function App(): ReactElement {
   return <HomePage />;
 }
 

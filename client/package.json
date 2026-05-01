@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "echo Client Server Checking: Working && vite",
+    "dev:host": "echo Client Server Checking: Working && vite --host 0.0.0.0 --port 5173",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
