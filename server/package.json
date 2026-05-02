@@ -11,11 +11,13 @@
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev"
   },
   "dependencies": {
+    "@ibm-cloud/watsonx-ai": "^1.7.11",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
+    "ibm-cloud-sdk-core": "^5.4.12",
     "mysql2": "^3.22.3",
     "next": "16.2.4",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -27,6 +29,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "form-data": "^4.0.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
