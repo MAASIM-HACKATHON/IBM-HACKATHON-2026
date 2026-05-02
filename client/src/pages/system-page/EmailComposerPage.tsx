@@ -1,5 +1,4 @@
 import { useState, useEffect, type FormEvent, type ReactElement, type ClipboardEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   DEFAULT_EMAIL_FORM_VALUES,
@@ -10,12 +9,14 @@ import {
 import { useWatsonxEmailGenerator } from '../../hooks/useWatsonxEmailGenerator';
 import type { EmailFormValues } from '../../utilities/system-utils/emailGenerator';
 import { analyzeContentWithWatsonx } from '../../services/contentAnalysisService';
+import LanguageSettingsModal from '../../components/system-components/LanguageSettingsModal';
+import type { SupportedLanguage } from '../../types/language.types';
+import { getLanguageByCode } from '../../config/languages';
 
 const DRAFT_STORAGE_KEY = 'email-composer-draft';
 const DRAFT_TIMESTAMP_KEY = 'email-composer-draft-timestamp';
 
 function EmailComposerPage(): ReactElement {
-  const navigate = useNavigate();
   const [formValues, setFormValues] = useState<EmailFormValues>(() => {
     // Load draft from localStorage on initial render
     try {
@@ -45,6 +46,7 @@ function EmailComposerPage(): ReactElement {
     const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
     return timestamp ? new Date(timestamp) : null;
   });
+  const [isLanguageSettingsOpen, setIsLanguageSettingsOpen] = useState(false);
   
   const { error, generateDraft, loading, metadata, reset, result } =
     useWatsonxEmailGenerator();
@@ -163,6 +165,29 @@ function EmailComposerPage(): ReactElement {
     }
   };
 
+  // Auto-detect language when key points change
+  const handleKeyPointsChange = (value: string): void => {
+    updateField('keyPoints', value);
+    
+    // Auto-detect language if enabled and sufficient text
+    if (formValues.autoDetectLanguage && value.trim().length > 30) {
+      // Debounce language detection
+      setTimeout(() => {
+        import('../../utilities/system-utils/languageDetector').then(({ detectLanguageFromKeyPoints, isConfidentDetection }) => {
+          const result = detectLanguageFromKeyPoints(value);
+          
+          if (isConfidentDetection(result) && result.detectedLanguage !== formValues.targetLanguage) {
+            updateField('targetLanguage', result.detectedLanguage);
+            toast.success(
+              `🌍 Language detected: ${result.detectedLanguage.toUpperCase()} (${result.confidence}% confidence)`,
+              { duration: 3000 }
+            );
+          }
+        });
+      }, 1000);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     toast.loading('Generating email with Watsonx AI...', { id: 'generate' });
@@ -239,23 +264,23 @@ function EmailComposerPage(): ReactElement {
               <div className="grid gap-3 sm:grid-cols-3">
                 <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-cyan-400/30 hover:bg-white/8">
                   <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">Step 1</p>
-                  <h2 className="mt-3 text-lg font-medium text-white">Smart Validation</h2>
+                  <h2 className="mt-3 text-lg font-medium text-white">Auto Language Detection</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Define purpose, tone, role, and key points. All inputs validated before AI processing.
+                    Paste your content and AI automatically detects language from 26 options and fills form fields.
                   </p>
                 </article>
                 <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-cyan-400/30 hover:bg-white/8">
                   <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">Step 2</p>
-                  <h2 className="mt-3 text-lg font-medium text-white">AI Generation</h2>
+                  <h2 className="mt-3 text-lg font-medium text-white">Cultural Adaptation</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Granite model analyzes requirements and generates professional email tailored to your needs.
+                    AI adapts communication style, formality, and structure to match cultural norms automatically.
                   </p>
                 </article>
                 <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-cyan-400/30 hover:bg-white/8">
                   <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">Step 3</p>
-                  <h2 className="mt-3 text-lg font-medium text-white">Polished Output</h2>
+                  <h2 className="mt-3 text-lg font-medium text-white">Native Language Output</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-300">
-                    Complete email with subject and body, ready to send. Includes full metadata transparency.
+                    Generate professional emails in the detected language with proper grammar and cultural context.
                   </p>
                 </article>
               </div>
@@ -284,15 +309,20 @@ function EmailComposerPage(): ReactElement {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>26 Languages Supported</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
                   <span>Region: US-South</span>
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/5 p-4 text-xs leading-6 text-slate-300">
-                <p className="font-medium text-cyan-200">🤖 Watsonx AI Auto-Fill</p>
+              <div className="mt-3 rounded-2xl border border-cyan-300/15 bg-cyan-300/5 p-4 text-xs leading-6 text-slate-300">
+                <p className="font-medium text-cyan-200">🤖 Watsonx AI Auto-Fill & Language Detection</p>
                 <p className="mt-2">
                   Paste your content into "Key message points" and Watsonx AI will intelligently analyze 
-                  and auto-fill Purpose, Tone, Job Role, Company, and other fields with high accuracy.
+                  and auto-fill Purpose, Tone, Job Role, Company, and automatically detect the language 
+                  from your text (supports 26 languages).
                 </p>
               </div>
 
@@ -321,13 +351,26 @@ function EmailComposerPage(): ReactElement {
                   </p>
                 )}
               </div>
-              <button
-                className="rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
-                onClick={handleReset}
-                type="button"
-              >
-                Reset
-              </button>
+              <div className="flex gap-2">
+                <button
+                  className="flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200 transition hover:border-cyan-400/50 hover:bg-cyan-400/20"
+                  onClick={() => setIsLanguageSettingsOpen(true)}
+                  type="button"
+                  title="Language Settings"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                  <span className="hidden sm:inline">Language</span>
+                </button>
+                <button
+                  className="rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
+                  onClick={handleReset}
+                  type="button"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
 
             <div className="mt-8 grid gap-5">
@@ -405,13 +448,13 @@ function EmailComposerPage(): ReactElement {
                 </div>
                 <textarea
                   className="min-h-40 w-full rounded-[24px] border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
-                  onChange={(event) => updateField('keyPoints', event.target.value)}
+                  onChange={(event) => handleKeyPointsChange(event.target.value)}
                   onPaste={handleKeyPointsPaste}
-                  placeholder="Paste job description, your notes, or key points here. Watsonx AI will auto-detect and fill other fields for you!"
+                  placeholder="Paste job description, your notes, or key points here. Watsonx AI will auto-detect language and fill other fields for you!"
                   value={formValues.keyPoints}
                 />
                 <p className="text-xs leading-5 text-slate-400">
-                  💡 Paste any text (job description, email draft, notes) and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and more.
+                  💡 Paste any text (job description, email draft, notes) and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and detect language automatically.
                 </p>
               </label>
 
@@ -452,6 +495,32 @@ function EmailComposerPage(): ReactElement {
                 </p>
               </label>
 
+              {/* Language Settings Indicator */}
+              {formValues.targetLanguage && formValues.targetLanguage !== 'en' && (
+                <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{getLanguageByCode(formValues.targetLanguage)?.flag}</span>
+                      <div>
+                        <p className="text-sm font-medium text-emerald-200">
+                          Target Language: {getLanguageByCode(formValues.targetLanguage)?.name}
+                        </p>
+                        {formValues.culturalAdaptation && (
+                          <p className="text-xs text-slate-400">Cultural adaptation enabled</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className="text-xs text-cyan-300 hover:text-cyan-200 transition"
+                      onClick={() => setIsLanguageSettingsOpen(true)}
+                      type="button"
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {error ? (
                 <div className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
                   {error}
@@ -476,6 +545,20 @@ function EmailComposerPage(): ReactElement {
 
             {result ? (
               <div className="mt-8 space-y-6">
+                {/* Language Indicator */}
+                {formValues.targetLanguage && formValues.targetLanguage !== 'en' && (
+                  <div className="rounded-xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 flex items-center gap-2">
+                    <span className="text-emerald-200 text-sm">
+                      🌍 Generated in: <strong>{formValues.targetLanguage.toUpperCase()}</strong>
+                    </span>
+                    {formValues.culturalAdaptation && (
+                      <span className="text-xs bg-emerald-400/20 text-emerald-200 px-2 py-1 rounded">
+                        Culturally Adapted
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 <article className="rounded-[24px] border border-white/10 bg-white/5 p-5">
                   <p className="text-xs uppercase tracking-[0.22em] text-slate-400">Subject Line</p>
                   <p className="mt-2 text-lg font-medium text-white">{result.subject}</p>
@@ -577,6 +660,21 @@ function EmailComposerPage(): ReactElement {
           </section>
         </section>
       </div>
+
+      {/* Language Settings Modal */}
+      <LanguageSettingsModal
+        autoDetectLanguage={formValues.autoDetectLanguage ?? true}
+        culturalAdaptation={formValues.culturalAdaptation ?? true}
+        isOpen={isLanguageSettingsOpen}
+        keyPoints={formValues.keyPoints}
+        localizedTone={formValues.localizedTone}
+        onAutoDetectChange={(enabled) => updateField('autoDetectLanguage', enabled)}
+        onClose={() => setIsLanguageSettingsOpen(false)}
+        onCulturalAdaptationChange={(enabled) => updateField('culturalAdaptation', enabled)}
+        onLanguageChange={(language: SupportedLanguage) => updateField('targetLanguage', language)}
+        onLocalizedToneChange={(tone) => updateField('localizedTone', tone)}
+        targetLanguage={formValues.targetLanguage ?? 'en'}
+      />
     </main>
   );
 }

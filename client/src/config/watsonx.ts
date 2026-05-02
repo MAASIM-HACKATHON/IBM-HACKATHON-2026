@@ -100,4 +100,9 @@ export const DEFAULT_EMAIL_FORM_VALUES: EmailFormValues = {
   company: '',
   extraInstruction: '',
   keyPoints: '',
+  // Multi-language defaults
+  targetLanguage: 'en',
+  autoDetectLanguage: true,
+  culturalAdaptation: true,
+  localizedTone: undefined,
 };

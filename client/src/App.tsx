@@ -5,8 +5,9 @@ import Navbar from './components/system-components/Navbar';
 import HomePage from './pages/system-page/HomePage';
 import EmailComposerPage from './pages/system-page/EmailComposerPage';
 import ResumeBuilderPage from './pages/system-page/ResumeBuilderPage';
+import type { ReactElement } from 'react';
 
-function App(): JSX.Element {
+function App(): ReactElement {
   return (
     <ThemeProvider>
       <Toaster

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FiSun, FiMoon, FiCopy, FiCheck, FiZap, FiMinimize2, FiMaximize2, FiEdit3 } from 'react-icons/fi';
-import { useTheme } from '../../context/ThemeContext';
+import { FiMoon, FiCopy, FiCheck, FiZap, FiMinimize2, FiMaximize2, FiEdit3 } from 'react-icons/fi';
 import { useEmailGenerator } from '../../hooks/useEmailGenerator';
 import { EmailTone } from '../../services/emailService';
 
 function EmailComposer() {
-  const { theme, toggleTheme } = useTheme();
   const { generateEmail, loading, error, result } = useEmailGenerator();
 
   const [originalText, setOriginalText] = useState('');
@@ -106,15 +104,11 @@ function EmailComposer() {
               </div>
             </div>
             <button
-              onClick={toggleTheme}
               className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              aria-label="Toggle theme"
+              aria-label="Theme indicator"
+              disabled
             >
-              {theme === 'light' ? (
-                <FiMoon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              ) : (
-                <FiSun className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-              )}
+              <FiMoon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
             </button>
           </div>
         </div>

@@ -1,3 +1,6 @@
+import type { SupportedLanguage, CulturalContext } from '../../types/language.types';
+import { getCulturalContext } from '../../config/languages';
+
 export type EmailPurpose = 'job-application' | 'follow-up' | 'thank-you' | 'networking' | 'inquiry';
 export type EmailTone = 'formal' | 'professional' | 'friendly' | 'enthusiastic';
 export type RefinementOption = 'none' | 'shorter' | 'longer' | 'more-formal' | 'more-casual';
@@ -10,6 +13,11 @@ export interface EmailFormValues {
   purpose: EmailPurpose;
   refinement: RefinementOption;
   tone: EmailTone;
+  // Multi-language support
+  targetLanguage?: SupportedLanguage;
+  autoDetectLanguage?: boolean;
+  culturalAdaptation?: boolean;
+  localizedTone?: string;
 }
 
 export interface GeneratedEmailDraft {
@@ -111,18 +119,110 @@ function getTemplateSections(purpose: EmailPurpose): string[] {
   ];
 }
 
+/**
+ * Build cultural adaptation instructions based on target language
+ */
+function buildCulturalInstructions(
+  language: SupportedLanguage,
+  culturalContext: CulturalContext,
+  localizedTone?: string
+): string[] {
+  const instructions: string[] = [];
+  
+  if (language !== 'en') {
+    instructions.push(`IMPORTANT: Generate the email in ${getLanguageDisplayName(language)}.`);
+    instructions.push('This is not a translation - write naturally in the target language.');
+  }
+  
+  if (culturalContext.honorificsRequired) {
+    instructions.push('Use appropriate honorifics and formal address as culturally expected.');
+  }
+  
+  if (culturalContext.greetingStyle === 'hierarchical') {
+    instructions.push('Use hierarchical greeting style showing proper respect for business relationships.');
+  } else if (culturalContext.greetingStyle === 'indirect') {
+    instructions.push('Use indirect greeting style with appropriate formality.');
+  }
+  
+  if (culturalContext.lengthPreference === 'concise') {
+    instructions.push('Keep the email concise and to the point, as preferred in this culture.');
+  } else if (culturalContext.lengthPreference === 'detailed') {
+    instructions.push('Provide appropriate detail and context, as expected in this culture.');
+  }
+  
+  if (culturalContext.directnessLevel === 'indirect') {
+    instructions.push('Use indirect communication style, avoiding overly direct statements.');
+  } else if (culturalContext.directnessLevel === 'very-direct') {
+    instructions.push('Use direct and clear communication style, as culturally appropriate.');
+  }
+  
+  if (localizedTone) {
+    instructions.push(`Apply the localized tone: ${localizedTone}`);
+  }
+  
+  return instructions;
+}
+
+/**
+ * Get display name for language
+ */
+function getLanguageDisplayName(language: SupportedLanguage): string {
+  const names: Record<SupportedLanguage, string> = {
+    'en': 'English',
+    'es': 'Spanish (Español)',
+    'fr': 'French (Français)',
+    'de': 'German (Deutsch)',
+    'it': 'Italian (Italiano)',
+    'pt': 'Portuguese (Português)',
+    'nl': 'Dutch (Nederlands)',
+    'pl': 'Polish (Polski)',
+    'ru': 'Russian (Русский)',
+    'ja': 'Japanese (日本語)',
+    'ko': 'Korean (한국어)',
+    'zh-CN': 'Simplified Chinese (简体中文)',
+    'zh-TW': 'Traditional Chinese (繁體中文)',
+    'ar': 'Arabic (العربية)',
+    'hi': 'Hindi (हिन्दी)',
+    'tr': 'Turkish (Türkçe)',
+    'sv': 'Swedish (Svenska)',
+    'da': 'Danish (Dansk)',
+    'no': 'Norwegian (Norsk)',
+    'fi': 'Finnish (Suomi)',
+    'cs': 'Czech (Čeština)',
+    'el': 'Greek (Ελληνικά)',
+    'he': 'Hebrew (עברית)',
+    'th': 'Thai (ไทย)',
+    'vi': 'Vietnamese (Tiếng Việt)',
+    'fil': 'Filipino',
+  };
+  return names[language] || language;
+}
+
 export function buildEmailPrompt(values: EmailFormValues): string {
   const keyPoints = normalizeKeyPoints(values.keyPoints);
   const sections = getTemplateSections(values.purpose);
   const extraInstruction = values.extraInstruction.trim();
-
-  return [
+  
+  // Multi-language support
+  const targetLanguage = values.targetLanguage || 'en';
+  const culturalAdaptation = values.culturalAdaptation !== false;
+  const culturalContext = getCulturalContext(targetLanguage);
+  
+  const baseInstructions = [
     'You are assisting with a lightweight career email generator.',
     'Write a realistic email draft for a job seeker.',
     `Purpose: ${PURPOSE_LABELS[values.purpose]}.`,
     `Tone instruction: Use a ${TONE_INSTRUCTIONS[values.tone]} tone.`,
     `Target role: ${values.jobRole.trim()}.`,
     `Target company: ${values.company.trim()}.`,
+  ];
+  
+  // Add cultural adaptation instructions
+  const culturalInstructions = culturalAdaptation
+    ? buildCulturalInstructions(targetLanguage, culturalContext, values.localizedTone)
+    : [];
+  
+  const contentInstructions = [
     'Key message points to incorporate:',
     ...keyPoints.map((point, index) => `${index + 1}. ${point}`),
     'Use this structure:',
@@ -132,10 +232,20 @@ export function buildEmailPrompt(values: EmailFormValues): string {
       ? [`Additional instruction from the app user: ${extraInstruction}`]
       : []),
     'Keep the content grounded and avoid exaggerated claims.',
+  ];
+  
+  const formatInstructions = [
     'Return exactly this format and nothing else:',
     'SUBJECT: <subject line>',
     'BODY:',
     '<email body>',
+  ];
+
+  return [
+    ...baseInstructions,
+    ...culturalInstructions,
+    ...contentInstructions,
+    ...formatInstructions,
   ].join('\n');
 }
 
