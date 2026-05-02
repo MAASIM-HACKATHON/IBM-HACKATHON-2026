@@ -6,6 +6,8 @@
 import { useState, useCallback, useEffect, type ReactElement } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import toast from 'react-hot-toast';
+import 'react-pdf/dist/Page/TextLayer.css';
+import 'react-pdf/dist/Page/AnnotationLayer.css';
 
 // Configure PDF.js worker - use local worker from node_modules
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
