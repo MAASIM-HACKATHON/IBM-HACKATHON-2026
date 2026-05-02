@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPythonParserClient, isPythonParserAvailable } from '@/services/pythonParserClient';
 import { ParseResponse as PythonParseResponse } from '@/types/pdf-parser.types';
+import { ResumeParserService } from '@/services/resumeParserService';
+import { ResumeValidationService } from '@/services/resumeValidationService';
 
 // Cache pdf-parse import to avoid repeated dynamic imports (performance optimization)
 // @ts-ignore - pdf-parse doesn't have TypeScript definitions
@@ -13,8 +15,13 @@ async function getPdfParse() {
   return pdfParseCache;
 }
 
-// Feature flag for Python parser (can be disabled via env var)
+// Feature flags
 const USE_PYTHON_PARSER = process.env.USE_PYTHON_PARSER !== 'false';
+const USE_AI_PARSER = process.env.USE_AI_PARSER !== 'false';
+
+// Initialize AI services
+const aiParser = new ResumeParserService();
+const validator = new ResumeValidationService();
 
 // Performance tracking
 interface PerformanceMetrics {
@@ -77,6 +84,12 @@ interface ParsedResumeData {
       honors?: string[];
     }>;
     certifications: string[];
+  };
+  metadata?: {
+    parsingMethod: 'ai_hybrid' | 'rule_based_fallback';
+    confidence: number;
+    warnings: string[];
+    processingTime?: number;
   };
   skills?: string[];
   workExperience?: Array<any>;
@@ -244,16 +257,104 @@ export async function POST(request: NextRequest) {
     console.log(`  Extracted text length: ${text.length} characters`);
     console.log(`  Text preview (first 500 chars):\n${text.substring(0, 500)}`);
 
-    // Parse the resume
-    console.log(`\n[${new Date().toISOString()}] 🔍 STEP 6: Parsing Resume Text`);
-    const parseStartTime = Date.now();
+    // STEP 6: AI-Powered Parsing with Hybrid Fallback
+    let parsedData: ParsedResumeData;
     
-    const parsedData = parseResumeText(text);
-    
-    const parseEndTime = Date.now();
-    console.log(`✓ Resume parsing completed in ${parseEndTime - parseStartTime}ms`);
+    if (USE_AI_PARSER && aiParser.isAvailable()) {
+      console.log(`\n[${new Date().toISOString()}] 🤖 STEP 6: AI-Powered Resume Parsing`);
+      console.log('Using Watsonx Granite for intelligent parsing...');
+      
+      try {
+        const aiStartTime = Date.now();
+        
+        // Step 6.1: AI structuring
+        console.log('  [6.1] Calling Watsonx Granite AI...');
+        const aiParsedData = await aiParser.parseResume(text);
+        console.log('  ✓ AI parsing complete');
+        
+        // Step 6.2: Schema validation
+        console.log('  [6.2] Validating schema...');
+        const schemaValidation = validator.validateSchema(aiParsedData);
+        if (!schemaValidation.isValid) {
+          console.warn('  ⚠️  Schema validation failed:', schemaValidation.errors);
+          throw new Error('AI parsing produced invalid schema');
+        }
+        console.log('  ✓ Schema validation passed');
+        
+        // Step 6.3: Data quality validation
+        console.log('  [6.3] Validating data quality...');
+        const qualityValidation = validator.validateDataQuality(aiParsedData);
+        if (qualityValidation.warnings.length > 0) {
+          console.log('  ⚠️  Quality warnings:', qualityValidation.warnings);
+        }
+        console.log('  ✓ Quality validation complete');
+        
+        // Step 6.4: Apply corrections
+        console.log('  [6.4] Applying fallback corrections...');
+        const correctedData = validator.applyFallbackCorrections(aiParsedData, text);
+        console.log('  ✓ Corrections applied');
+        
+        // Step 6.5: Calculate confidence
+        const confidence = validator.calculateConfidence(
+          correctedData,
+          schemaValidation.errors,
+          qualityValidation.warnings
+        );
+        console.log(`  [6.5] Confidence score: ${confidence}%`);
+        
+        // Convert to standard format
+        parsedData = aiParser.convertToStandardFormat(correctedData, text);
+        parsedData.metadata = {
+          parsingMethod: 'ai_hybrid',
+          confidence,
+          warnings: qualityValidation.warnings,
+          processingTime: Date.now() - aiStartTime
+        };
+        
+        const aiEndTime = Date.now();
+        console.log(`✅ AI parsing complete in ${aiEndTime - aiStartTime}ms (confidence: ${confidence}%)`);
+        
+      } catch (aiError) {
+        console.error('❌ AI parsing failed, using rule-based fallback');
+        console.error('Error:', aiError instanceof Error ? aiError.message : String(aiError));
+        
+        // Fallback to rule-based parser
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6 (Fallback): Rule-Based Parsing`);
+        const parseStartTime = Date.now();
+        parsedData = parseResumeText(text);
+        parsedData.metadata = {
+          parsingMethod: 'rule_based_fallback',
+          confidence: 60,
+          warnings: ['AI parsing unavailable, used rule-based fallback'],
+          processingTime: Date.now() - parseStartTime
+        };
+        const parseEndTime = Date.now();
+        console.log(`✓ Rule-based parsing completed in ${parseEndTime - parseStartTime}ms`);
+      }
+    } else {
+      // AI parser not available or disabled
+      if (!USE_AI_PARSER) {
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6: Rule-Based Parsing (AI disabled)`);
+      } else {
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6: Rule-Based Parsing (AI not configured)`);
+      }
+      
+      const parseStartTime = Date.now();
+      parsedData = parseResumeText(text);
+      parsedData.metadata = {
+        parsingMethod: 'rule_based_fallback',
+        confidence: 60,
+        warnings: [USE_AI_PARSER ? 'AI parser not configured' : 'AI parser disabled'],
+        processingTime: Date.now() - parseStartTime
+      };
+      const parseEndTime = Date.now();
+      console.log(`✓ Rule-based parsing completed in ${parseEndTime - parseStartTime}ms`);
+    }
     
     console.log(`\n[${new Date().toISOString()}] 📊 STEP 7: Parsed Data Summary`);
+    console.log('Parsing method:', parsedData.metadata?.parsingMethod || 'unknown');
+    console.log('Confidence score:', parsedData.metadata?.confidence || 'N/A');
+    console.log('Processing time:', parsedData.metadata?.processingTime || 'N/A', 'ms');
     console.log('Parsed sections:', {
       personalInfo: parsedData.parsedSections.personalInfo,
       summary: parsedData.parsedSections.summary ? 'Present' : 'None',
@@ -264,6 +365,9 @@ export async function POST(request: NextRequest) {
       educationCount: parsedData.parsedSections.education.length,
       certificationsCount: parsedData.parsedSections.certifications.length,
     });
+    if (parsedData.metadata?.warnings && parsedData.metadata.warnings.length > 0) {
+      console.log('Warnings:', parsedData.metadata.warnings);
+    }
 
     console.log(`\n[${new Date().toISOString()}] ✅ STEP 8: Returning Parsed Data`);
     console.log(`${'='.repeat(80)}`);

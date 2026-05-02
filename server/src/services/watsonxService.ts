@@ -56,7 +56,7 @@ const watsonxConfig: WatsonxConfig = {
   apiKey: process.env.WATSONX_API_KEY || '',
   projectId: process.env.WATSONX_PROJECT_ID || '',
   serviceUrl: process.env.WATSONX_URL || 'https://us-south.ml.cloud.ibm.com',
-  model: 'ibm/granite-13b-chat-v2',
+  model: 'ibm/granite-3-8b-instruct',
   parameters: {
     max_new_tokens: 250,      // Limit response length
     temperature: 0.7,         // Balanced creativity

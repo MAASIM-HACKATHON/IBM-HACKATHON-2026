@@ -10,7 +10,9 @@
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
     "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",
     "postinstall": "node setup-pdf-workaround.js",
-    "setup": "node setup-pdf-workaround.js"
+    "setup": "node setup-pdf-workaround.js",
+    "test:config": "npx ts-node src/tests/test-config.ts",
+    "test:ai-parser": "npx ts-node src/tests/test-ai-resume-parser.ts"
   },
   "dependencies": {
     "@ibm-cloud/watsonx-ai": "^1.7.11",
@@ -27,13 +29,14 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.39",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "form-data": "^4.0.5",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }
