@@ -20,6 +20,10 @@ export interface WorkExperience {
   yearsOfExperience?: number;
   description?: string;
   skills?: string[];
+  achievements?: string[];
+  location?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Project {
@@ -27,6 +31,10 @@ export interface Project {
   description: string;
   technologies?: string[];
   skills?: string[];
+  role?: string;
+  duration?: string;
+  achievements?: string[];
+  link?: string;
 }
 
 export interface Education {
@@ -34,6 +42,9 @@ export interface Education {
   institution: string;
   year?: string;
   field?: string;
+  location?: string;
+  gpa?: string;
+  honors?: string[];
 }
 
 export interface JobRole {

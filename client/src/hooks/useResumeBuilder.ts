@@ -61,19 +61,42 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
 
   // File Upload Handler
   const handleFileUpload = useCallback(async (file: File) => {
+    const timestamp = new Date().toISOString();
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[${timestamp}] 📄 FILE UPLOAD INITIATED`);
+    console.log(`${'='.repeat(80)}`);
+    console.log('📋 File Details:', {
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024).toFixed(2)} KB`,
+      lastModified: new Date(file.lastModified).toISOString(),
+    });
+
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
       // Validate file type
+      console.log(`\n[${new Date().toISOString()}] 🔍 STEP 1: File Type Validation`);
       const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+      console.log('✓ Valid types:', validTypes);
+      console.log('✓ File type:', file.type);
+      
       if (!validTypes.includes(file.type)) {
+        console.error('❌ VALIDATION FAILED: Invalid file type');
         throw new Error('Invalid file type. Please upload PDF, DOCX, or TXT file.');
       }
+      console.log('✅ File type validation passed');
 
       // Validate file size (max 10MB)
+      console.log(`\n[${new Date().toISOString()}] 🔍 STEP 2: File Size Validation`);
+      console.log('✓ File size:', `${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log('✓ Max allowed:', '10 MB');
+      
       if (file.size > 10 * 1024 * 1024) {
+        console.error('❌ VALIDATION FAILED: File size exceeds limit');
         throw new Error('File size exceeds 10MB limit.');
       }
+      console.log('✅ File size validation passed');
 
       const uploadedFile: UploadedFile = {
         file,
@@ -82,20 +105,73 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         size: file.size,
         uploadedAt: new Date(),
       };
+      console.log(`\n[${new Date().toISOString()}] 📦 Uploaded File Object Created:`, {
+        type: uploadedFile.type,
+        name: uploadedFile.name,
+        size: uploadedFile.size,
+        uploadedAt: uploadedFile.uploadedAt.toISOString(),
+      });
 
       // Parse the file
+      console.log(`\n[${new Date().toISOString()}] 🚀 STEP 3: Initiating Resume Parsing`);
+      console.log('Calling parseResumeFile service...');
+      const parseStartTime = Date.now();
+      
       const parsedData = await parseResumeFile(file);
+      
+      const parseEndTime = Date.now();
+      console.log(`✅ Parsing completed in ${parseEndTime - parseStartTime}ms`);
+      
+      console.log(`\n[${new Date().toISOString()}] 📊 STEP 4: Raw Parsed Data Received`);
+      console.log('Raw Text Length:', parsedData.rawText?.length || 0, 'characters');
+      console.log('Raw Text Preview (first 500 chars):\n', parsedData.rawText?.substring(0, 500) || 'No raw text');
+      
+      console.log(`\n[${new Date().toISOString()}] 🔍 STEP 5: Analyzing Parsed Sections`);
+      console.log('Personal Info:', JSON.stringify(parsedData.parsedSections.personalInfo, null, 2));
+      console.log('Summary:', parsedData.parsedSections.summary || 'None');
+      console.log('Skills Count:', parsedData.parsedSections.skills.length);
+      console.log('Skills:', parsedData.parsedSections.skills);
+      console.log('Work Experience Count:', parsedData.parsedSections.workExperience.length);
+      console.log('Work Experience:', JSON.stringify(parsedData.parsedSections.workExperience, null, 2));
+      console.log('Projects Count:', parsedData.parsedSections.projects.length);
+      console.log('Projects:', JSON.stringify(parsedData.parsedSections.projects, null, 2));
+      console.log('Education Count:', parsedData.parsedSections.education.length);
+      console.log('Education:', JSON.stringify(parsedData.parsedSections.education, null, 2));
+      console.log('Certifications Count:', parsedData.parsedSections.certifications.length);
+      console.log('Certifications:', parsedData.parsedSections.certifications);
 
       // Fallback: If no skills were parsed, try extracting from raw text
+      console.log(`\n[${new Date().toISOString()}] 🔍 STEP 6: Skills Fallback Check`);
       if (parsedData.parsedSections.skills.length === 0 && parsedData.rawText) {
+        console.log('⚠️ No skills found in parsed sections, attempting fallback extraction...');
         const extractedSkills = extractSkillsFromRawText(parsedData.rawText);
+        console.log('Fallback extraction found:', extractedSkills.length, 'skills');
+        console.log('Extracted skills:', extractedSkills);
         
         if (extractedSkills.length > 0) {
           parsedData.parsedSections.skills = extractedSkills;
           parsedData.skills = extractedSkills;
+          console.log('✅ Skills populated from fallback extraction');
+        } else {
+          console.log('⚠️ Fallback extraction also found no skills');
         }
+      } else {
+        console.log('✅ Skills already present, no fallback needed');
       }
 
+      console.log(`\n[${new Date().toISOString()}] 📋 STEP 7: Final Parsed Data Object`);
+      console.log('Final Data Structure:', {
+        hasRawText: !!parsedData.rawText,
+        rawTextLength: parsedData.rawText?.length || 0,
+        personalInfo: parsedData.parsedSections.personalInfo,
+        skillsCount: parsedData.parsedSections.skills.length,
+        workExperienceCount: parsedData.parsedSections.workExperience.length,
+        projectsCount: parsedData.parsedSections.projects.length,
+        educationCount: parsedData.parsedSections.education.length,
+        certificationsCount: parsedData.parsedSections.certifications.length,
+      });
+
+      console.log(`\n[${new Date().toISOString()}] ✅ STEP 8: Setting State with Parsed Data`);
       setState(prev => ({
         ...prev,
         uploadedFile,
@@ -103,7 +179,22 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         loading: false,
         currentStep: 'job-description',
       }));
+      
+      console.log('✅ State updated successfully');
+      console.log(`${'='.repeat(80)}`);
+      console.log(`[${new Date().toISOString()}] ✅ FILE UPLOAD AND PARSING COMPLETED SUCCESSFULLY`);
+      console.log(`${'='.repeat(80)}\n`);
+      
     } catch (error) {
+      const errorTimestamp = new Date().toISOString();
+      console.error(`\n${'='.repeat(80)}`);
+      console.error(`[${errorTimestamp}] ❌ FILE UPLOAD ERROR`);
+      console.error(`${'='.repeat(80)}`);
+      console.error('Error Type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error Message:', error instanceof Error ? error.message : String(error));
+      console.error('Error Stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error(`${'='.repeat(80)}\n`);
+      
       setState(prev => ({
         ...prev,
         loading: false,

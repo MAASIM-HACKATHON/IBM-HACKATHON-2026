@@ -107,49 +107,61 @@ function generateResumeContent(
   const jobKeywords = extractKeywords(jobDescription);
 
   // Header section (minimal for ATS)
-  resume += '='.repeat(60) + '\n';
+  resume += '═'.repeat(70) + '\n';
   resume += 'PROFESSIONAL RESUME\n';
   if (targetRole) {
     resume += `Target Role: ${targetRole}\n`;
   }
-  resume += '='.repeat(60) + '\n\n';
+  resume += '═'.repeat(70) + '\n\n';
 
   // Professional Summary (optimized with job keywords)
   if (resumeType === 'full-cv' || profileData.rawText) {
     resume += 'PROFESSIONAL SUMMARY\n';
-    resume += '-'.repeat(60) + '\n';
+    resume += '─'.repeat(70) + '\n';
     resume += generateOptimizedSummary(profileData, jobKeywords, resumeType);
     resume += '\n\n';
   }
 
   // Core Skills (prioritize job-relevant skills)
   if (profileData.skills && profileData.skills.length > 0) {
-    resume += 'CORE COMPETENCIES\n';
-    resume += '-'.repeat(60) + '\n';
+    resume += 'CORE COMPETENCIES & TECHNICAL SKILLS\n';
+    resume += '─'.repeat(70) + '\n';
     const optimizedSkills = prioritizeSkills(profileData.skills, jobKeywords);
-    resume += optimizedSkills.join(' • ') + '\n\n';
+    
+    // Format skills in rows for better readability
+    const skillsPerRow = 4;
+    for (let i = 0; i < optimizedSkills.length; i += skillsPerRow) {
+      const skillGroup = optimizedSkills.slice(i, i + skillsPerRow);
+      resume += skillGroup.join(' • ') + '\n';
+    }
+    resume += '\n';
   }
 
-  // Professional Experience
+  // Professional Experience (PRESERVE ALL CONTENT)
   if (profileData.workExperience && profileData.workExperience.length > 0) {
     resume += 'PROFESSIONAL EXPERIENCE\n';
-    resume += '-'.repeat(60) + '\n';
+    resume += '─'.repeat(70) + '\n\n';
+    
     profileData.workExperience.forEach((exp, index) => {
-      resume += `\n${exp.title}\n`;
+      resume += `${exp.title}\n`;
       resume += `${exp.company}`;
       if (exp.duration) resume += ` | ${exp.duration}`;
+      if (exp.yearsOfExperience) resume += ` (${exp.yearsOfExperience} years)`;
       resume += '\n';
+      resume += '·'.repeat(70) + '\n';
       
+      // Include full description
       if (exp.description) {
-        resume += `${exp.description}\n`;
+        resume += `${exp.description}\n\n`;
       }
       
-      // Add achievements with bullet points
+      // Add ALL achievements with bullet points
       if (exp.skills && exp.skills.length > 0) {
-        resume += '\nKey Achievements:\n';
+        resume += 'Key Technologies & Achievements:\n';
         exp.skills.forEach(skill => {
-          resume += `• Utilized ${skill} to deliver high-impact solutions\n`;
+          resume += `  • ${skill}\n`;
         });
+        resume += '\n';
       }
       
       if (index < profileData.workExperience!.length - 1) {
@@ -159,53 +171,89 @@ function generateResumeContent(
     resume += '\n';
   }
 
-  // Projects (especially for full CV)
-  if (profileData.projects && profileData.projects.length > 0 && resumeType === 'full-cv') {
-    resume += 'KEY PROJECTS\n';
-    resume += '-'.repeat(60) + '\n';
+  // Projects (ALWAYS include for comprehensive resume)
+  if (profileData.projects && profileData.projects.length > 0) {
+    resume += 'KEY PROJECTS & PORTFOLIO\n';
+    resume += '─'.repeat(70) + '\n\n';
+    
     profileData.projects.forEach((project, index) => {
-      resume += `\n${project.name}\n`;
+      resume += `${project.name}\n`;
+      resume += '·'.repeat(70) + '\n';
       resume += `${project.description}\n`;
+      
+      if (project.role) {
+        resume += `Role: ${project.role}\n`;
+      }
+      
       if (project.technologies && project.technologies.length > 0) {
         resume += `Technologies: ${project.technologies.join(', ')}\n`;
       }
-      if (index < profileData.projects.length - 1) {
+      
+      if (project.achievements && project.achievements.length > 0) {
+        resume += '\nKey Achievements:\n';
+        project.achievements.forEach(achievement => {
+          resume += `  • ${achievement}\n`;
+        });
+      }
+      
+      if (project.link) {
+        resume += `Link: ${project.link}\n`;
+      }
+      
+      if (profileData.projects && index < profileData.projects.length - 1) {
         resume += '\n';
       }
     });
     resume += '\n';
   }
 
-  // Education
+  // Education (PRESERVE ALL DETAILS)
   if (profileData.education && profileData.education.length > 0) {
     resume += 'EDUCATION\n';
-    resume += '-'.repeat(60) + '\n';
+    resume += '─'.repeat(70) + '\n';
+    
     profileData.education.forEach(edu => {
       resume += `${edu.degree}`;
       if (edu.field) resume += ` in ${edu.field}`;
       resume += '\n';
       resume += `${edu.institution}`;
+      if (edu.location) resume += `, ${edu.location}`;
       if (edu.year) resume += ` | ${edu.year}`;
-      resume += '\n\n';
+      resume += '\n';
+      
+      if (edu.gpa) {
+        resume += `GPA: ${edu.gpa}\n`;
+      }
+      
+      if (edu.honors && edu.honors.length > 0) {
+        resume += `Honors: ${edu.honors.join(', ')}\n`;
+      }
+      
+      resume += '\n';
     });
   }
 
-  // Certifications
+  // Certifications (PRESERVE ALL)
   if (profileData.certifications && profileData.certifications.length > 0) {
-    resume += 'CERTIFICATIONS\n';
-    resume += '-'.repeat(60) + '\n';
+    resume += 'CERTIFICATIONS & PROFESSIONAL DEVELOPMENT\n';
+    resume += '─'.repeat(70) + '\n';
     profileData.certifications.forEach(cert => {
-      resume += `• ${cert}\n`;
+      resume += `  • ${cert}\n`;
     });
     resume += '\n';
   }
 
   // Additional instructions
   if (additionalInstructions && resumeType === 'full-cv') {
-    resume += '\nADDITIONAL INFORMATION\n';
-    resume += '-'.repeat(60) + '\n';
-    resume += additionalInstructions + '\n';
+    resume += 'ADDITIONAL INFORMATION\n';
+    resume += '─'.repeat(70) + '\n';
+    resume += additionalInstructions + '\n\n';
   }
+
+  // Footer
+  resume += '═'.repeat(70) + '\n';
+  resume += `Generated by IBM Watsonx AI Resume Builder | ${new Date().toLocaleDateString()}\n`;
+  resume += '═'.repeat(70) + '\n';
 
   return resume;
 }

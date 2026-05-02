@@ -83,47 +83,121 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const timestamp = new Date().toISOString();
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`[${timestamp}] 🖥️  SERVER: Resume Parse API Called`);
+  console.log(`${'='.repeat(80)}`);
+  
   const origin = request.headers.get('origin');
+  console.log('Request origin:', origin);
   const corsHeaders = getCorsHeaders(origin);
+  console.log('CORS headers set:', corsHeaders);
 
   try {
+    console.log(`\n[${new Date().toISOString()}] 📦 STEP 1: Extracting FormData`);
     const formData = await request.formData();
+    console.log('✓ FormData extracted');
+    
     const file = formData.get('file') as File;
+    console.log('File from FormData:', file ? 'Found' : 'Not found');
 
     if (!file) {
+      console.error('❌ ERROR: No file provided in request');
       return NextResponse.json(
         { error: 'No file provided' },
         { status: 400, headers: corsHeaders }
       );
     }
 
+    console.log('📋 File Details:', {
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024).toFixed(2)} KB`,
+    });
+
     // Validate file type
+    console.log(`\n[${new Date().toISOString()}] 🔍 STEP 2: Validating File Type`);
     const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
+    console.log('Valid types:', validTypes);
+    console.log('Received type:', file.type);
+    
     if (!validTypes.includes(file.type)) {
+      console.error('❌ VALIDATION FAILED: Invalid file type');
       return NextResponse.json(
         { error: 'Invalid file type. Please upload PDF, DOCX, or TXT file.' },
         { status: 400, headers: corsHeaders }
       );
     }
+    console.log('✅ File type validation passed');
 
     // Validate file size (10MB)
+    console.log(`\n[${new Date().toISOString()}] 🔍 STEP 3: Validating File Size`);
+    console.log('File size:', `${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    console.log('Max allowed:', '10 MB');
+    
     if (file.size > 10 * 1024 * 1024) {
+      console.error('❌ VALIDATION FAILED: File size exceeds limit');
       return NextResponse.json(
         { error: 'File size exceeds 10MB limit' },
         { status: 400, headers: corsHeaders }
       );
     }
+    console.log('✅ File size validation passed');
 
     // Read file content
+    console.log(`\n[${new Date().toISOString()}] 📖 STEP 4: Reading File Content`);
     const buffer = await file.arrayBuffer();
+    console.log('✓ File buffer created, size:', buffer.byteLength, 'bytes');
+    
+    console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5: Extracting Text from File`);
+    console.log('File type for extraction:', file.type);
+    const extractStartTime = Date.now();
+    
     const text = await extractTextFromFile(buffer, file.type);
+    
+    const extractEndTime = Date.now();
+    console.log(`✓ Text extraction completed in ${extractEndTime - extractStartTime}ms`);
+    console.log('Extracted text length:', text.length, 'characters');
+    console.log('Extracted text preview (first 500 chars):\n', text.substring(0, 500));
 
     // Parse the resume
+    console.log(`\n[${new Date().toISOString()}] 🔍 STEP 6: Parsing Resume Text`);
+    const parseStartTime = Date.now();
+    
     const parsedData = parseResumeText(text);
+    
+    const parseEndTime = Date.now();
+    console.log(`✓ Resume parsing completed in ${parseEndTime - parseStartTime}ms`);
+    
+    console.log(`\n[${new Date().toISOString()}] 📊 STEP 7: Parsed Data Summary`);
+    console.log('Parsed sections:', {
+      personalInfo: parsedData.parsedSections.personalInfo,
+      summary: parsedData.parsedSections.summary ? 'Present' : 'None',
+      skillsCount: parsedData.parsedSections.skills.length,
+      skills: parsedData.parsedSections.skills,
+      workExperienceCount: parsedData.parsedSections.workExperience.length,
+      projectsCount: parsedData.parsedSections.projects.length,
+      educationCount: parsedData.parsedSections.education.length,
+      certificationsCount: parsedData.parsedSections.certifications.length,
+    });
+
+    console.log(`\n[${new Date().toISOString()}] ✅ STEP 8: Returning Parsed Data`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(`[${new Date().toISOString()}] ✅ SERVER: Resume Parse Completed Successfully`);
+    console.log(`${'='.repeat(80)}\n`);
 
     return NextResponse.json(parsedData, { headers: corsHeaders });
   } catch (error) {
+    const errorTimestamp = new Date().toISOString();
+    console.error(`\n${'='.repeat(80)}`);
+    console.error(`[${errorTimestamp}] ❌ SERVER ERROR`);
+    console.error(`${'='.repeat(80)}`);
     console.error('Resume parsing error:', error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error(`${'='.repeat(80)}\n`);
+    
     return NextResponse.json(
       { error: 'Failed to parse resume file' },
       { status: 500, headers: corsHeaders }
@@ -132,67 +206,86 @@ export async function POST(request: NextRequest) {
 }
 
 async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<string> {
+  console.log(`\n[${new Date().toISOString()}] 🔤 extractTextFromFile: Starting text extraction`);
+  console.log('MIME type:', mimeType);
+  console.log('Buffer size:', buffer.byteLength, 'bytes');
+
   // For text files, directly convert
   if (mimeType === 'text/plain') {
+    console.log('✓ Detected as text/plain - using direct decoding');
     const decoder = new TextDecoder('utf-8');
-    return decoder.decode(buffer);
+    const text = decoder.decode(buffer);
+    console.log('✓ Text decoded, length:', text.length, 'characters');
+    return text;
   }
 
-  // For PDF and DOCX, we would need additional libraries
-  // For now, return a placeholder that indicates the file was received
-  // In production, you would use libraries like pdf-parse or mammoth
-  
-  return `[Resume content from ${mimeType} file - parsing would require additional libraries in production]
+  // For PDF files - extract text using pdf-parse library
+  if (mimeType === 'application/pdf') {
+    console.log('✓ Detected as PDF - using pdf-parse library');
+    try {
+      const uint8Array = new Uint8Array(buffer);
+      console.log('✓ Created Uint8Array, length:', uint8Array.length);
+      
+      console.log('✓ Parsing PDF with pdf-parse...');
+      // Dynamic import for CommonJS module with ESM/CJS interop
+      const pdfParseModule = await import('pdf-parse');
+      // Handle both ESM and CJS module formats
+      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
+      const data = await pdfParse(uint8Array);
+      
+      console.log('✓ PDF parsed successfully');
+      console.log('  - Pages:', data.numpages);
+      console.log('  - Text length:', data.text.length, 'characters');
+      console.log('  - Info:', data.info);
+      
+      if (!data.text || data.text.trim().length === 0) {
+        console.error('⚠️ PDF parsed but no text extracted');
+        return 'Unable to extract text from PDF. The PDF may be image-based or encrypted. Please try uploading as TXT format.';
+      }
+      
+      console.log('✅ PDF extraction complete, text length:', data.text.length);
+      console.log('Text preview (first 500 chars):', data.text.substring(0, 500));
+      return data.text;
+    } catch (error) {
+      console.error('❌ PDF parsing error:', error);
+      console.error('Error details:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      return 'Error parsing PDF file. The PDF may be corrupted or password-protected. Please try uploading as TXT format.';
+    }
+  }
 
-SAMPLE PARSED CONTENT:
+  // For DOCX files - extract text from XML
+  if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    try {
+      const uint8Array = new Uint8Array(buffer);
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      let text = decoder.decode(uint8Array);
+      
+      // Extract text from DOCX XML structure
+      const textMatches = text.match(/<w:t[^>]*>([^<]+)<\/w:t>/g);
+      if (textMatches) {
+        text = textMatches.map(match => {
+          const content = match.match(/>([^<]+)</);
+          return content ? content[1] : '';
+        }).join(' ');
+      }
+      
+      return text.trim() || 'Unable to extract text from DOCX. Please try uploading as TXT format.';
+    } catch (error) {
+      console.error('DOCX parsing error:', error);
+      return 'Error parsing DOCX file. Please try uploading as TXT format.';
+    }
+  }
 
-John Doe
-Email: john.doe@example.com | Phone: (555) 123-4567
-LinkedIn: linkedin.com/in/johndoe | GitHub: github.com/johndoe
-
-PROFESSIONAL SUMMARY
-Experienced software engineer with 5+ years of expertise in full-stack development.
-
-SKILLS
-JavaScript, TypeScript, React, Node.js, Python, AWS, Docker, MongoDB, PostgreSQL, Git
-
-WORK EXPERIENCE
-
-Senior Software Engineer
-Tech Company Inc. | 2021 - Present | 3 years
-- Led development of microservices architecture serving 1M+ users
-- Implemented CI/CD pipelines reducing deployment time by 60%
-- Mentored team of 5 junior developers
-
-Software Engineer
-StartupCo | 2019 - 2021 | 2 years
-- Developed RESTful APIs using Node.js and Express
-- Built responsive web applications with React
-- Collaborated with cross-functional teams
-
-PROJECTS
-
-E-Commerce Platform
-Full-stack e-commerce solution with payment integration
-Technologies: React, Node.js, MongoDB, Stripe
-
-Task Management App
-Real-time collaborative task manager
-Technologies: React, Socket.io, PostgreSQL
-
-EDUCATION
-
-Bachelor of Science in Computer Science
-University of Technology | 2019
-GPA: 3.8/4.0
-
-CERTIFICATIONS
-- AWS Certified Solutions Architect
-- MongoDB Certified Developer`;
+  return 'Unsupported file format. Please upload TXT, PDF, or DOCX file.';
 }
 
 function parseResumeText(text: string): ParsedResumeData {
+  console.log(`\n[${new Date().toISOString()}] 📝 parseResumeText: Starting resume parsing`);
+  console.log('Input text length:', text.length, 'characters');
+  
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+  console.log('✓ Split into', lines.length, 'non-empty lines');
 
   const parsedData: ParsedResumeData = {
     rawText: text,
@@ -204,51 +297,158 @@ function parseResumeText(text: string): ParsedResumeData {
       certifications: [],
     },
   };
+  console.log('✓ Initialized parsedData structure');
 
-  // Extract personal info (usually in first few lines)
-  parsedData.parsedSections.personalInfo = extractPersonalInfo(lines.slice(0, 5).join('\n'));
+  // Extract personal info (check first 10 lines for better coverage)
+  console.log(`\n[${new Date().toISOString()}] 👤 Extracting personal info from first 10 lines...`);
+  parsedData.parsedSections.personalInfo = extractPersonalInfo(lines.slice(0, 10).join('\n'));
+  console.log('✓ Personal info extracted:', parsedData.parsedSections.personalInfo);
 
   // Extract sections
+  console.log(`\n[${new Date().toISOString()}] 📑 Identifying resume sections...`);
   const sections = identifySections(lines);
+  console.log('✓ Sections identified:', Object.keys(sections));
+  console.log('Section details:', Object.entries(sections).map(([key, val]) => `${key}: ${val.length} lines`));
 
-  // Parse skills
+  // Parse skills (with fallback to extract from entire text)
+  console.log(`\n[${new Date().toISOString()}] 🎯 Parsing skills section...`);
   if (sections.skills) {
+    console.log('✓ Skills section found with', sections.skills.length, 'lines');
     parsedData.parsedSections.skills = parseSkills(sections.skills);
+    console.log('✓ Parsed', parsedData.parsedSections.skills.length, 'skills from section');
+  } else {
+    console.log('⚠️ No skills section found');
   }
+  
+  // Fallback: Extract skills from entire text if none found
+  if (parsedData.parsedSections.skills.length === 0) {
+    console.log('⚠️ No skills parsed, attempting fallback extraction from entire text...');
+    parsedData.parsedSections.skills = extractSkillsFromText(text);
+    console.log('✓ Fallback extraction found', parsedData.parsedSections.skills.length, 'skills');
+  }
+  console.log('Final skills:', parsedData.parsedSections.skills);
 
   // Parse work experience
+  console.log(`\n[${new Date().toISOString()}] 💼 Parsing work experience...`);
   if (sections.experience) {
+    console.log('✓ Experience section found with', sections.experience.length, 'lines');
     parsedData.parsedSections.workExperience = parseWorkExperience(sections.experience);
+    console.log('✓ Parsed', parsedData.parsedSections.workExperience.length, 'work experiences');
+    parsedData.parsedSections.workExperience.forEach((exp, idx) => {
+      console.log(`  [${idx + 1}]`, exp.title, 'at', exp.company);
+    });
+  } else {
+    console.log('⚠️ No experience section found');
   }
 
   // Parse projects
+  console.log(`\n[${new Date().toISOString()}] 🚀 Parsing projects...`);
   if (sections.projects) {
+    console.log('✓ Projects section found with', sections.projects.length, 'lines');
     parsedData.parsedSections.projects = parseProjects(sections.projects);
+    console.log('✓ Parsed', parsedData.parsedSections.projects.length, 'projects');
+    parsedData.parsedSections.projects.forEach((proj, idx) => {
+      console.log(`  [${idx + 1}]`, proj.name);
+    });
+  } else {
+    console.log('⚠️ No projects section found');
   }
 
   // Parse education
+  console.log(`\n[${new Date().toISOString()}] 🎓 Parsing education...`);
   if (sections.education) {
+    console.log('✓ Education section found with', sections.education.length, 'lines');
     parsedData.parsedSections.education = parseEducation(sections.education);
+    console.log('✓ Parsed', parsedData.parsedSections.education.length, 'education entries');
+    parsedData.parsedSections.education.forEach((edu, idx) => {
+      console.log(`  [${idx + 1}]`, edu.degree, 'at', edu.institution);
+    });
+  } else {
+    console.log('⚠️ No education section found');
   }
 
-  // Parse certifications
+  // Parse certifications (check multiple section names)
+  console.log(`\n[${new Date().toISOString()}] 📜 Parsing certifications...`);
   if (sections.certifications) {
+    console.log('✓ Certifications section found with', sections.certifications.length, 'lines');
     parsedData.parsedSections.certifications = parseCertifications(sections.certifications);
+    console.log('✓ Parsed', parsedData.parsedSections.certifications.length, 'certifications');
+  } else if (sections.trainings) {
+    console.log('✓ Trainings section found with', sections.trainings.length, 'lines');
+    parsedData.parsedSections.certifications = parseCertifications(sections.trainings);
+    console.log('✓ Parsed', parsedData.parsedSections.certifications.length, 'certifications from trainings');
+  } else {
+    console.log('⚠️ No certifications/trainings section found');
   }
 
   // Extract summary
+  console.log(`\n[${new Date().toISOString()}] 📄 Extracting summary...`);
   if (sections.summary) {
     parsedData.parsedSections.summary = sections.summary.join(' ');
+    console.log('✓ Summary extracted from summary section, length:', parsedData.parsedSections.summary.length);
+  } else if (sections.profile) {
+    parsedData.parsedSections.summary = sections.profile.join(' ');
+    console.log('✓ Summary extracted from profile section, length:', parsedData.parsedSections.summary.length);
+  } else {
+    console.log('⚠️ No summary/profile section found');
   }
 
   // Populate top-level fields for compatibility
+  console.log(`\n[${new Date().toISOString()}] 🔄 Populating top-level fields for compatibility...`);
   parsedData.skills = parsedData.parsedSections.skills;
   parsedData.workExperience = parsedData.parsedSections.workExperience;
   parsedData.projects = parsedData.parsedSections.projects;
   parsedData.education = parsedData.parsedSections.education;
   parsedData.certifications = parsedData.parsedSections.certifications;
+  console.log('✓ Top-level fields populated');
+
+  console.log(`\n[${new Date().toISOString()}] ✅ parseResumeText: Parsing complete`);
+  console.log('Final summary:', {
+    hasRawText: !!parsedData.rawText,
+    rawTextLength: parsedData.rawText.length,
+    personalInfo: !!parsedData.parsedSections.personalInfo,
+    summary: !!parsedData.parsedSections.summary,
+    skillsCount: parsedData.parsedSections.skills.length,
+    workExperienceCount: parsedData.parsedSections.workExperience.length,
+    projectsCount: parsedData.parsedSections.projects.length,
+    educationCount: parsedData.parsedSections.education.length,
+    certificationsCount: parsedData.parsedSections.certifications.length,
+  });
 
   return parsedData;
+}
+
+// Enhanced skill extraction from entire text
+function extractSkillsFromText(text: string): string[] {
+  const skills = new Set<string>();
+  const lowerText = text.toLowerCase();
+  
+  // Common technical skills to look for
+  const commonSkills = [
+    'React', 'Vue', 'Angular', 'JavaScript', 'TypeScript', 'Node.js', 'Python', 'Java',
+    'PHP', 'Laravel', 'Go', 'Rust', 'C++', 'C#', '.NET', 'Ruby', 'Rails',
+    'HTML', 'CSS', 'Sass', 'Tailwind', 'Bootstrap', 'Material-UI',
+    'Express', 'Django', 'Flask', 'Spring', 'FastAPI',
+    'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Elasticsearch',
+    'Docker', 'Kubernetes', 'AWS', 'Azure', 'Google Cloud', 'GCP',
+    'Git', 'GitHub', 'GitLab', 'CI/CD', 'Jenkins',
+    'REST', 'GraphQL', 'API', 'Microservices',
+    'Agile', 'Scrum', 'Jira', 'Confluence',
+    'Jest', 'Mocha', 'Cypress', 'Testing',
+    'Linux', 'Unix', 'Bash', 'Shell',
+    'SQL', 'NoSQL', 'Database', 'UI/UX', 'Responsive Design',
+    'Version Control', 'System Development', 'Project Management',
+    'Full-Stack', 'Frontend', 'Backend', 'Web Development'
+  ];
+  
+  commonSkills.forEach(skill => {
+    const pattern = new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (pattern.test(text)) {
+      skills.add(skill);
+    }
+  });
+  
+  return Array.from(skills);
 }
 
 function extractPersonalInfo(text: string): any {
@@ -288,12 +488,13 @@ function identifySections(lines: string[]): Record<string, string[]> {
   let currentContent: string[] = [];
 
   const sectionHeaders = {
-    summary: /^(summary|profile|objective|about)/i,
-    skills: /^(skills|technical skills|core competencies|technologies)/i,
-    experience: /^(experience|work experience|employment|professional experience)/i,
-    projects: /^(projects|key projects|portfolio)/i,
-    education: /^(education|academic)/i,
-    certifications: /^(certifications|certificates|licenses)/i,
+    summary: /^(summary|profile|objective|about|professional summary)/i,
+    skills: /^(skills|technical skills|core competencies|technologies|area of expertise|expertise)/i,
+    experience: /^(experience|work experience|employment|professional experience|work history)/i,
+    projects: /^(projects|key projects|portfolio|project experience)/i,
+    education: /^(education|academic|educational background)/i,
+    certifications: /^(certifications|certificates|licenses|professional development)/i,
+    trainings: /^(trainings|training|seminar|workshops|certifications, seminar)/i,
   };
 
   lines.forEach(line => {
@@ -344,26 +545,34 @@ function parseWorkExperience(lines: string[]): any[] {
   const experiences: any[] = [];
   let current: any = null;
 
-  lines.forEach(line => {
-    // Check if it's a job title line (usually has company name)
-    if (line.includes('|') || /\d{4}/.test(line)) {
+  lines.forEach((line, index) => {
+    // Check if it's a job title line (various patterns)
+    const hasDatePattern = /\d{4}/.test(line) || /\d{1,2}\/\d{4}/.test(line) || /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line);
+    const hasSeparator = line.includes('|') || line.includes('–') || line.includes('-');
+    const isShortLine = line.length < 100;
+    const nextLineExists = index < lines.length - 1;
+    
+    // Detect job title (short line followed by details or has date/separator)
+    if ((isShortLine && hasDatePattern) || (isShortLine && hasSeparator && nextLineExists)) {
       if (current) {
         experiences.push(current);
       }
 
-      const parts = line.split('|').map(p => p.trim());
+      const parts = line.split(/[|–-]/).map(p => p.trim());
       current = {
-        title: parts[0] || 'Position',
-        company: parts[1] || 'Company',
-        duration: parts[2] || 'Duration',
+        title: parts[0] || line,
+        company: parts[1] || '',
+        duration: parts[2] || extractDuration(line),
         yearsOfExperience: extractYears(line),
         description: '',
         achievements: [],
         skills: [],
       };
-    } else if (current && line.startsWith('-') || line.startsWith('•')) {
-      current.achievements.push(line.replace(/^[-•]\s*/, ''));
+    } else if (current && (line.startsWith('-') || line.startsWith('•') || line.startsWith('○'))) {
+      // Achievement/bullet point
+      current.achievements.push(line.replace(/^[-•○]\s*/, ''));
     } else if (current && line.trim()) {
+      // Description or additional info
       if (!current.description) {
         current.description = line;
       } else {
@@ -379,29 +588,52 @@ function parseWorkExperience(lines: string[]): any[] {
   return experiences;
 }
 
+function extractDuration(text: string): string {
+  // Extract date ranges like "2021 - 2023", "Jan 2021 - Present", etc.
+  const datePattern = /(\d{4}|\w{3}\s+\d{4})\s*[-–]\s*(\d{4}|\w{3}\s+\d{4}|Present)/i;
+  const match = text.match(datePattern);
+  return match ? match[0] : '';
+}
+
 function parseProjects(lines: string[]): any[] {
   const projects: any[] = [];
   let current: any = null;
 
-  lines.forEach(line => {
-    // Project name is usually a standalone line
-    if (line.length < 100 && !line.startsWith('-') && !line.startsWith('•') && !line.toLowerCase().startsWith('technologies')) {
+  lines.forEach((line, index) => {
+    const hasDatePattern = /\d{4}/.test(line) || /\d{1,2}\/\d{4}/.test(line) || /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line);
+    const hasSeparator = line.includes('|') || line.includes('–') || line.includes('-');
+    const isShortLine = line.length < 100;
+    const nextLineExists = index < lines.length - 1;
+    
+    // Detect project title (short line with date or separator, or standalone short line)
+    if ((isShortLine && hasDatePattern) || (isShortLine && hasSeparator && nextLineExists) ||
+        (isShortLine && !line.startsWith('-') && !line.startsWith('•') && !line.toLowerCase().startsWith('technologies'))) {
       if (current) {
         projects.push(current);
       }
 
+      const parts = line.split(/[|–]/).map(p => p.trim());
       current = {
-        name: line,
+        name: parts[0] || line,
+        role: parts[1] || '',
+        duration: extractDuration(line),
         description: '',
         technologies: [],
-        skills: [],
+        achievements: [],
+        link: extractLink(line),
       };
-    } else if (current) {
-      if (line.toLowerCase().startsWith('technologies')) {
-        const techList = line.replace(/^technologies:?/i, '').trim();
-        current.technologies = techList.split(/[,;]/).map((t: string) => t.trim());
+    } else if (current && (line.startsWith('-') || line.startsWith('•') || line.startsWith('○'))) {
+      // Achievement/bullet point
+      current.achievements.push(line.replace(/^[-•○]\s*/, ''));
+    } else if (current && line.trim()) {
+      // Description or technologies
+      if (line.toLowerCase().startsWith('technologies') || line.toLowerCase().startsWith('tech stack')) {
+        const techList = line.replace(/^(technologies|tech stack):?/i, '').trim();
+        current.technologies = techList.split(/[,;]/).map((t: string) => t.trim()).filter((t: string) => t.length > 0);
+      } else if (!current.description) {
+        current.description = line;
       } else {
-        current.description += (current.description ? ' ' : '') + line;
+        current.description += ' ' + line;
       }
     }
   });
@@ -411,6 +643,13 @@ function parseProjects(lines: string[]): any[] {
   }
 
   return projects;
+}
+
+function extractLink(text: string): string {
+  // Extract URLs from text
+  const urlPattern = /(https?:\/\/[^\s]+)/i;
+  const match = text.match(urlPattern);
+  return match ? match[0] : '';
 }
 
 function parseEducation(lines: string[]): any[] {
@@ -444,10 +683,66 @@ function parseEducation(lines: string[]): any[] {
   return education;
 }
 
-function parseCertifications(lines: string[]): string[] {
-  return lines
-    .map(line => line.replace(/^[-•]\s*/, '').trim())
-    .filter(line => line.length > 3);
+function parseCertifications(lines: string[]): any[] {
+  const certifications: any[] = [];
+  let current: any = null;
+
+  lines.forEach((line, index) => {
+    // Skip section headers
+    if (line.match(/^(certifications|certificates|trainings|seminar)/i)) {
+      return;
+    }
+
+    const hasDatePattern = /\d{4}/.test(line) || /\d{1,2}\/\d{4}/.test(line) || /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line);
+    const hasSeparator = line.includes('|') || line.includes('–');
+    const isShortLine = line.length < 150;
+    
+    // Detect certification entry
+    if (line.trim() && (isShortLine || hasDatePattern || hasSeparator)) {
+      if (current && current.name) {
+        certifications.push(current);
+      }
+
+      const parts = line.split(/[|–]/).map(p => p.trim());
+      current = {
+        name: parts[0] || line,
+        issuer: parts[1] || extractIssuer(line),
+        date: extractDate(line),
+        description: parts.length > 2 ? parts.slice(2).join(' ') : '',
+      };
+    } else if (current && line.trim() && (line.startsWith('-') || line.startsWith('•'))) {
+      // Additional details
+      if (!current.description) {
+        current.description = line.replace(/^[-•]\s*/, '');
+      } else {
+        current.description += ' ' + line.replace(/^[-•]\s*/, '');
+      }
+    }
+  });
+
+  if (current && current.name) {
+    certifications.push(current);
+  }
+
+  return certifications;
+}
+
+function extractIssuer(text: string): string {
+  // Common certification issuers
+  const issuers = ['AWS', 'Microsoft', 'Google', 'IBM', 'Oracle', 'Cisco', 'CompTIA', 'PMI', 'Scrum.org', 'Coursera', 'Udemy', 'edX'];
+  for (const issuer of issuers) {
+    if (text.includes(issuer)) {
+      return issuer;
+    }
+  }
+  return '';
+}
+
+function extractDate(text: string): string {
+  // Extract dates like "2021", "Jan 2021", "01/2021"
+  const datePattern = /(\d{1,2}\/\d{4}|\w{3}\s+\d{4}|\d{4})/i;
+  const match = text.match(datePattern);
+  return match ? match[0] : '';
 }
 
 function extractYears(text: string): number {
