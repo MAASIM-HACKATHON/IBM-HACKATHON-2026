@@ -71,9 +71,7 @@ if [ ! -d "venv" ]; then
 fi
 
 echo "[INFO] Installing Python dependencies..."
-source venv/bin/activate
-pip install -r requirements.txt > /dev/null 2>&1 || echo "[WARNING] Some Python packages may have failed to install"
-deactivate
+./venv/bin/pip3 install -r requirements.txt > /dev/null 2>&1 || echo "[WARNING] Some Python packages may have failed to install"
 cd ../..
 
 # ============================================
@@ -105,12 +103,34 @@ trap cleanup SIGINT SIGTERM
 # ============================================
 echo "[4/6] Starting Python Parser service..."
 cd server/python-parser
-source venv/bin/activate
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
+
+# Check if venv exists
+if [ ! -f "venv/bin/python3" ]; then
+    echo "[ERROR] Virtual environment not found at venv/bin/python3"
+    cd ../..
+    exit 1
+fi
+
+# Start the service with visible output for debugging
+echo "[INFO] Starting uvicorn server..."
+./venv/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
 PYTHON_PID=$!
-deactivate
 cd ../..
-sleep 2
+
+# Wait and check if process is still running
+sleep 3
+if ps -p $PYTHON_PID > /dev/null 2>&1; then
+    echo "[SUCCESS] Python Parser started (PID: $PYTHON_PID)"
+    # Test if port is listening
+    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        echo "[SUCCESS] Python Parser is listening on port 8000"
+    else
+        echo "[WARNING] Python Parser process running but port 8000 not listening yet"
+    fi
+else
+    echo "[ERROR] Python Parser failed to start"
+    echo "[INFO] Check server/python-parser directory for errors"
+fi
 
 # ============================================
 # STEP 5: Start Server (Next.js)
@@ -157,3 +177,4 @@ echo ""
 wait
 
 # Made with Bob
+

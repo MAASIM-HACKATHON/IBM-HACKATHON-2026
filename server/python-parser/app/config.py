@@ -2,7 +2,7 @@
 Configuration for PDF Parser Microservice
 """
 from pydantic_settings import BaseSettings
-from typing import Optional
+from typing import Optional, Union
 
 
 class Settings(BaseSettings):
@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
-    # CORS Settings
-    CORS_ORIGINS: list[str] = [
+    # CORS Settings - can be comma-separated string or list
+    CORS_ORIGINS: Union[list[str], str] = [
         "http://localhost:3001",  # Node.js server
         "http://localhost:5173",  # React client
         "http://localhost:3000",  # Alternative Node.js port
@@ -32,8 +32,15 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "development"
     
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Convert comma-separated string to list if needed
+        if isinstance(self.CORS_ORIGINS, str):
+            self.CORS_ORIGINS = [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+    
     class Config:
         env_file = ".env"
+        env_file_encoding = "utf-8"
         case_sensitive = True
 
 
