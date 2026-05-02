@@ -96,10 +96,8 @@ export const DEFAULT_EMAIL_FORM_VALUES: EmailFormValues = {
   purpose: 'job-application',
   tone: 'professional',
   refinement: 'none',
-  jobRole: 'Frontend Developer Intern',
-  company: 'IBM',
-  extraInstruction:
-    'Keep it honest, polished, and suitable for a first contact with a recruiter.',
-  keyPoints:
-    'I am applying for the role and I have React + TypeScript experience.\nI built responsive projects and enjoy solving UX problems.\nI would like to contribute to an AI-focused team.',
+  jobRole: '',
+  company: '',
+  extraInstruction: '',
+  keyPoints: '',
 };

@@ -9,7 +9,7 @@ import {
 } from '../../config/watsonx';
 import { useWatsonxEmailGenerator } from '../../hooks/useWatsonxEmailGenerator';
 import type { EmailFormValues } from '../../utilities/system-utils/emailGenerator';
-import { analyzeContent } from '../../utilities/system-utils/contentAnalyzer';
+import { analyzeContentWithWatsonx } from '../../services/contentAnalysisService';
 
 const DRAFT_STORAGE_KEY = 'email-composer-draft';
 const DRAFT_TIMESTAMP_KEY = 'email-composer-draft-timestamp';
@@ -94,37 +94,47 @@ function EmailComposerPage(): ReactElement {
     }
 
     setIsAnalyzing(true);
+    toast.loading('🤖 Analyzing content with Watsonx AI...', { id: 'analyze' });
     
-    // Small delay to show analyzing state
-    setTimeout(() => {
-      const analysis = analyzeContent(pastedText);
+    try {
+      const analysis = await analyzeContentWithWatsonx(pastedText);
       
       if (analysis && analysis.confidence >= 30) {
         // Auto-fill detected fields
         const updates: Partial<EmailFormValues> = {};
+        let fieldsUpdated = 0;
         
         if (analysis.purpose) {
           updates.purpose = analysis.purpose;
+          fieldsUpdated++;
         }
         
         if (analysis.tone) {
           updates.tone = analysis.tone;
+          fieldsUpdated++;
         }
         
-        if (analysis.jobRole && !formValues.jobRole) {
+        // Always update job role if detected by AI
+        if (analysis.jobRole) {
           updates.jobRole = analysis.jobRole;
+          fieldsUpdated++;
         }
         
-        if (analysis.company && !formValues.company) {
+        // Always update company if detected by AI
+        if (analysis.company) {
           updates.company = analysis.company;
+          fieldsUpdated++;
         }
         
-        if (analysis.extraInstruction && !formValues.extraInstruction) {
+        // Only update extra instruction if field is empty
+        if (analysis.extraInstruction && !formValues.extraInstruction.trim()) {
           updates.extraInstruction = analysis.extraInstruction;
+          fieldsUpdated++;
         }
         
         if (analysis.refinement) {
           updates.refinement = analysis.refinement;
+          fieldsUpdated++;
         }
 
         setFormValues((current) => ({
@@ -133,13 +143,24 @@ function EmailComposerPage(): ReactElement {
         }));
 
         toast.success(
-          `🤖 Auto-filled ${Object.keys(updates).length} fields (${analysis.confidence}% confidence)`,
-          { duration: 4000 }
+          `✨ Auto-filled ${fieldsUpdated} field${fieldsUpdated !== 1 ? 's' : ''} (${analysis.confidence}% confidence)`,
+          { id: 'analyze', duration: 4000 }
+        );
+      } else {
+        toast.error(
+          'Could not analyze content with sufficient confidence. Try adding more details.',
+          { id: 'analyze', duration: 3000 }
         );
       }
-      
+    } catch (error) {
+      console.error('Content analysis failed:', error);
+      toast.error(
+        'Failed to analyze content. Please try again or fill fields manually.',
+        { id: 'analyze', duration: 3000 }
+      );
+    } finally {
       setIsAnalyzing(false);
-    }, 300);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -159,6 +180,17 @@ function EmailComposerPage(): ReactElement {
     reset();
     clearDraft();
     toast.success('Form reset successfully');
+  };
+
+  const handleRegenerateEmail = async (): Promise<void> => {
+    toast.loading('Regenerating email with Watsonx AI...', { id: 'regenerate' });
+    
+    try {
+      await generateDraft(formValues);
+      toast.success('Email regenerated successfully!', { id: 'regenerate' });
+    } catch {
+      toast.error('Failed to regenerate email', { id: 'regenerate' });
+    }
   };
 
   const handleCopyEmail = async (): Promise<void> => {
@@ -257,10 +289,10 @@ function EmailComposerPage(): ReactElement {
               </div>
 
               <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/5 p-4 text-xs leading-6 text-slate-300">
-                <p className="font-medium text-cyan-200">🤖 Smart Auto-Fill</p>
+                <p className="font-medium text-cyan-200">🤖 Watsonx AI Auto-Fill</p>
                 <p className="mt-2">
-                  Paste your content into "Key message points" and the system will intelligently detect 
-                  and auto-fill Purpose, Tone, Job Role, and other fields for you.
+                  Paste your content into "Key message points" and Watsonx AI will intelligently analyze 
+                  and auto-fill Purpose, Tone, Job Role, Company, and other fields with high accuracy.
                 </p>
               </div>
 
@@ -346,7 +378,7 @@ function EmailComposerPage(): ReactElement {
                   <input
                     className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
                     onChange={(event) => updateField('jobRole', event.target.value)}
-                    placeholder="Frontend Developer Intern"
+                    placeholder="e.g., Data Analyst, Software Engineer, Product Manager"
                     type="text"
                     value={formValues.jobRole}
                   />
@@ -357,7 +389,7 @@ function EmailComposerPage(): ReactElement {
                   <input
                     className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
                     onChange={(event) => updateField('company', event.target.value)}
-                    placeholder="IBM"
+                    placeholder="e.g., IBM, Google, Microsoft"
                     type="text"
                     value={formValues.company}
                   />
@@ -375,11 +407,11 @@ function EmailComposerPage(): ReactElement {
                   className="min-h-40 w-full rounded-[24px] border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
                   onChange={(event) => updateField('keyPoints', event.target.value)}
                   onPaste={handleKeyPointsPaste}
-                  placeholder="Paste your content here and watch the magic happen! The system will auto-detect and fill other fields for you."
+                  placeholder="Paste job description, your notes, or key points here. Watsonx AI will auto-detect and fill other fields for you!"
                   value={formValues.keyPoints}
                 />
                 <p className="text-xs leading-5 text-slate-400">
-                  💡 Paste any text (job description, email draft, notes) and the AI will intelligently detect Purpose, Tone, Role, and more.
+                  💡 Paste any text (job description, email draft, notes) and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and more.
                 </p>
               </label>
 
@@ -512,11 +544,15 @@ function EmailComposerPage(): ReactElement {
                     Copy Full Email
                   </button>
                   <button
-                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:border-white/30 hover:text-white"
-                    onClick={handleReset}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2.5 text-sm font-medium text-slate-200 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleRegenerateEmail}
                     type="button"
+                    disabled={loading}
                   >
-                    Generate Another
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {loading ? 'Regenerating...' : 'Generate Another'}
                   </button>
                 </div>
               </div>
