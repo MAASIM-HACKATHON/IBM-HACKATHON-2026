@@ -1,5 +1,5 @@
 import { type ReactElement, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useResumeBuilder } from '../../hooks/useResumeBuilder';
 import FileUploadSection from '../../components/system-components/resume/FileUploadSection';
 import JobDescriptionSection from '../../components/system-components/resume/JobDescriptionSection';
@@ -9,177 +9,266 @@ import ResumePreview from '../../components/system-components/resume/ResumePrevi
 import EmailGeneratorModal from '../../components/system-components/resume/EmailGeneratorModal';
 
 function ResumeBuilderPage(): ReactElement {
-  const navigate = useNavigate();
   const resumeBuilder = useResumeBuilder();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [viewMode, setViewMode] = useState<'split' | 'original' | 'optimized'>('split');
 
-  return (
-    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10 xl:px-12">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
-              onClick={() => navigate('/')}
-              type="button"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              Back to Home
-            </button>
-            <h1 className="font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-2xl font-semibold text-white sm:text-3xl">
-              AI Resume Builder & ATS Optimizer
-            </h1>
-          </div>
-          {resumeBuilder.parsedData && (
-            <button
-              className="inline-flex items-center gap-2 rounded-full border border-red-400/30 px-4 py-2 text-sm text-red-300 transition hover:border-red-400/50 hover:text-red-200"
-              onClick={resumeBuilder.reset}
-              type="button"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Start Over
-            </button>
-          )}
-        </div>
+  // Wrapper functions with toast notifications
+  const handleFileUpload = async (file: File) => {
+    toast.loading(`📄 Processing ${file.name}...`, { id: 'file-upload' });
+    try {
+      await resumeBuilder.handleFileUpload(file);
+      toast.success('✅ Resume uploaded and parsed successfully!', { id: 'file-upload' });
+    } catch (error) {
+      toast.error('Failed to upload resume', { id: 'file-upload' });
+    }
+  };
 
-        {/* Error Display */}
-        {resumeBuilder.error && (
-          <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4">
-            <div className="flex items-start gap-3">
-              <svg className="h-5 w-5 shrink-0 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-red-200">{resumeBuilder.error}</p>
+  const handleAnalyzeJD = async () => {
+    toast.loading('🔍 Analyzing job description...', { id: 'analyze-jd' });
+    try {
+      await resumeBuilder.analyzeJD();
+      toast.success('✅ Job description analyzed successfully!', { id: 'analyze-jd' });
+    } catch (error) {
+      toast.error('Failed to analyze job description', { id: 'analyze-jd' });
+    }
+  };
+
+  const handleGenerateATSResume = async () => {
+    toast.loading('🤖 Generating ATS-optimized resume with Watsonx AI...', { id: 'generate-ats' });
+    try {
+      await resumeBuilder.generateATSResume();
+      toast.success('✅ ATS-optimized resume generated!', { id: 'generate-ats' });
+    } catch (error) {
+      toast.error('Failed to generate ATS resume', { id: 'generate-ats' });
+    }
+  };
+
+  const handleGenerateFullCV = async () => {
+    toast.loading('🤖 Generating full CV with Watsonx AI...', { id: 'generate-cv' });
+    try {
+      await resumeBuilder.generateFullCV();
+      toast.success('✅ Full CV generated!', { id: 'generate-cv' });
+    } catch (error) {
+      toast.error('Failed to generate full CV', { id: 'generate-cv' });
+    }
+  };
+
+  const handleRunATSAnalysis = async () => {
+    toast.loading('🔍 Running ATS analysis...', { id: 'ats-analysis' });
+    try {
+      await resumeBuilder.runATSAnalysis();
+      toast.success('✅ ATS analysis complete!', { id: 'ats-analysis' });
+    } catch (error) {
+      toast.error('Failed to run ATS analysis', { id: 'ats-analysis' });
+    }
+  };
+
+  const handleReset = () => {
+    resumeBuilder.reset();
+    toast.success('🔄 Reset successful');
+  };
+
+  return (
+    <main className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 px-4 py-10 text-slate-900 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100 sm:px-6 lg:px-10 xl:px-12">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
+        {/* Hero Section */}
+        <section className="overflow-hidden rounded-[32px] border border-purple-400/20 bg-white/80 shadow-[0_20px_70px_rgba(0,0,0,0.1)] backdrop-blur dark:bg-slate-950/70 dark:shadow-[0_30px_80px_rgba(7,14,26,0.45)]">
+          <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.3fr_0.9fr] lg:px-10 lg:py-10">
+            <div className="space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-100">
+                ✓ IBM watsonx AI Powered
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="max-w-3xl font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-4xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-5xl">
+                  AI Resume Builder & ATS Optimizer
+                </h1>
+                <p className="max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
+                  Transform your resume with AI-powered optimization. Upload your resume, add a job description, 
+                  and get ATS-optimized content with detailed scoring and insights—all powered by IBM Watsonx AI.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-purple-400/30 hover:bg-white/8">
+                  <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Step 1</p>
+                  <h2 className="mt-3 text-lg font-medium text-white">Upload Resume</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Upload PDF, DOCX, or TXT format for AI analysis.
+                  </p>
+                </article>
+                <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-purple-400/30 hover:bg-white/8">
+                  <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Step 2</p>
+                  <h2 className="mt-3 text-lg font-medium text-white">Add Job Details</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Paste job description for targeted optimization.
+                  </p>
+                </article>
+                <article className="rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-purple-400/30 hover:bg-white/8">
+                  <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Step 3</p>
+                  <h2 className="mt-3 text-lg font-medium text-white">Get ATS Score</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    Generate optimized resume with detailed insights.
+                  </p>
+                </article>
+              </div>
             </div>
+
+            <aside className="rounded-[28px] border border-emerald-300/20 bg-emerald-300/8 p-6">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400/20">
+                  <svg className="h-5 w-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-xs uppercase tracking-[0.25em] text-emerald-200">
+                  System Status
+                </p>
+              </div>
+              
+              <div className="mt-4 space-y-2.5 text-sm leading-6 text-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>Watsonx AI Active</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>ATS Engine Ready</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>Multi-Format Support</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>Email Generator Available</span>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-purple-300/15 bg-purple-300/5 p-4 text-xs leading-6 text-slate-300">
+                <p className="font-medium text-purple-200">🎯 ATS Optimization</p>
+                <p className="mt-2">
+                  Our AI analyzes your resume against job requirements, identifies gaps, and generates 
+                  ATS-friendly content with keyword optimization.
+                </p>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4 text-xs leading-6 text-slate-300">
+                <p className="font-medium text-white">💡 Pro Tip</p>
+                <p className="mt-2">
+                  Include complete job descriptions for better matching and higher ATS scores.
+                </p>
+              </div>
+            </aside>
           </div>
-        )}
+        </section>
+
 
         {/* Main Content Grid */}
-        <div className="grid gap-8 lg:grid-cols-3">
+        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left Column - Input Sections */}
-          <div className="space-y-6 lg:col-span-1">
-            {/* File Upload Section */}
-            <FileUploadSection
-              uploadedFile={resumeBuilder.uploadedFile}
-              loading={resumeBuilder.loading}
-              onFileUpload={resumeBuilder.handleFileUpload}
-              onClearFile={resumeBuilder.clearFile}
-            />
+          <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Input layer</p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">Resume & Job Details</h2>
+              </div>
+              {resumeBuilder.parsedData && (
+                <button
+                  className="inline-flex items-center gap-2 rounded-full border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-300 transition hover:border-red-400/50 hover:bg-red-400/20"
+                  onClick={handleReset}
+                  type="button"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Start Over
+                </button>
+              )}
+            </div>
 
-            {/* Job Description Section */}
-            {resumeBuilder.parsedData && (
-              <JobDescriptionSection
-                jobDescription={resumeBuilder.jobDescription}
-                jobAnalysis={resumeBuilder.jobAnalysis}
+            <div className="mt-8 space-y-6">
+              {/* File Upload Section */}
+              <FileUploadSection
+                uploadedFile={resumeBuilder.uploadedFile}
                 loading={resumeBuilder.loading}
-                onJobDescriptionChange={resumeBuilder.setJobDescription}
-                onAnalyze={resumeBuilder.analyzeJD}
+                onFileUpload={handleFileUpload}
+                onClearFile={resumeBuilder.clearFile}
               />
-            )}
 
-            {/* Action Hub */}
-            {resumeBuilder.parsedData && resumeBuilder.jobDescription && (
-              <ActionHub
-                loading={resumeBuilder.loading}
-                hasGeneratedResume={!!resumeBuilder.generatedResume}
-                hasATSScore={!!resumeBuilder.atsScore}
-                onGenerateATSResume={resumeBuilder.generateATSResume}
-                onGenerateFullCV={resumeBuilder.generateFullCV}
-                onRunATSAnalysis={resumeBuilder.runATSAnalysis}
-                onGenerateEmail={() => setShowEmailModal(true)}
-              />
-            )}
+              {/* Job Description Section */}
+              {resumeBuilder.parsedData && (
+                <JobDescriptionSection
+                  jobDescription={resumeBuilder.jobDescription}
+                  jobAnalysis={resumeBuilder.jobAnalysis}
+                  loading={resumeBuilder.loading}
+                  onJobDescriptionChange={resumeBuilder.setJobDescription}
+                  onAnalyze={handleAnalyzeJD}
+                />
+              )}
+
+              {/* Action Hub */}
+              {resumeBuilder.parsedData && resumeBuilder.jobDescription && (
+                <ActionHub
+                  loading={resumeBuilder.loading}
+                  hasGeneratedResume={!!resumeBuilder.generatedResume}
+                  hasATSScore={!!resumeBuilder.atsScore}
+                  onGenerateATSResume={handleGenerateATSResume}
+                  onGenerateFullCV={handleGenerateFullCV}
+                  onRunATSAnalysis={handleRunATSAnalysis}
+                  onGenerateEmail={() => setShowEmailModal(true)}
+                />
+              )}
+            </div>
           </div>
 
           {/* Right Column - Results */}
-          <div className="space-y-6 lg:col-span-2">
-            {/* ATS Score Card */}
-            {resumeBuilder.atsScore && (
-              <ATSScoreCard
-                atsScore={resumeBuilder.atsScore}
-                jobAnalysis={resumeBuilder.jobAnalysis}
-              />
-            )}
+          <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8">
+            <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Output layer</p>
+            <h2 className="mt-3 text-2xl font-semibold text-white">Results & Analysis</h2>
 
-            {/* Resume Preview */}
-            {resumeBuilder.generatedResume && (
-              <ResumePreview
-                originalResume={resumeBuilder.parsedData}
-                generatedResume={resumeBuilder.generatedResume}
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-              />
-            )}
+            <div className="mt-8 space-y-6">
+              {/* ATS Score Card */}
+              {resumeBuilder.atsScore && (
+                <ATSScoreCard
+                  atsScore={resumeBuilder.atsScore}
+                  jobAnalysis={resumeBuilder.jobAnalysis}
+                />
+              )}
 
-            {/* Welcome State */}
-            {!resumeBuilder.parsedData && !resumeBuilder.loading && (
-              <section className="overflow-hidden rounded-[32px] border border-purple-400/20 bg-slate-950/70 shadow-[0_30px_80px_rgba(7,14,26,0.45)] backdrop-blur">
-                <div className="px-6 py-16 text-center sm:px-8 lg:px-10">
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-purple-400/10 ring-1 ring-purple-400/20">
-                    <svg className="h-12 w-12 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {/* Resume Preview */}
+              {resumeBuilder.generatedResume && (
+                <ResumePreview
+                  originalResume={resumeBuilder.parsedData}
+                  generatedResume={resumeBuilder.generatedResume}
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                />
+              )}
+
+              {/* Welcome State */}
+              {!resumeBuilder.parsedData && !resumeBuilder.loading && !resumeBuilder.atsScore && !resumeBuilder.generatedResume && (
+                <div className="space-y-4 rounded-[24px] border border-dashed border-white/15 bg-white/3 p-8 text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-400/10">
+                    <svg className="h-8 w-8 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-
-                  <h2 className="mt-8 font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                    Get Started
-                  </h2>
-
-                  <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-300">
-                    Upload your resume or LinkedIn PDF to begin. Our AI will analyze your profile, 
-                    optimize it for ATS systems, and help you create tailored resumes for specific job opportunities.
-                  </p>
-
-                  <div className="mx-auto mt-12 max-w-3xl">
-                    <div className="grid gap-6 sm:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-400/10">
-                          <svg className="h-6 w-6 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                          </svg>
-                        </div>
-                        <h3 className="mt-4 font-medium text-white">1. Upload</h3>
-                        <p className="mt-2 text-sm text-slate-400">
-                          Upload your resume (PDF, DOCX, or TXT)
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-400/10">
-                          <svg className="h-6 w-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                          </svg>
-                        </div>
-                        <h3 className="mt-4 font-medium text-white">2. Analyze</h3>
-                        <p className="mt-2 text-sm text-slate-400">
-                          Add job description for targeted optimization
-                        </p>
-                      </div>
-
-                      <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-400/10">
-                          <svg className="h-6 w-6 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                        </div>
-                        <h3 className="mt-4 font-medium text-white">3. Generate</h3>
-                        <p className="mt-2 text-sm text-slate-400">
-                          Get ATS-optimized resume and insights
-                        </p>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <p className="text-base font-medium text-white">
+                      Ready to optimize your resume
+                    </p>
+                    <p className="text-sm leading-7 text-slate-300">
+                      Upload your resume to begin. Add a job description for targeted optimization 
+                      and ATS scoring. Results will appear here.
+                    </p>
                   </div>
                 </div>
-              </section>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        </section>
       </div>
 
       {/* Email Generator Modal */}

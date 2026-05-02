@@ -102,6 +102,7 @@ export async function generateApplicationEmail(
 
 /**
  * Client-side job description analysis (basic extraction)
+ * Enhanced to handle vague job descriptions
  */
 export function extractJobKeywords(jobDescription: string): string[] {
   const text = jobDescription.toLowerCase();
@@ -109,14 +110,18 @@ export function extractJobKeywords(jobDescription: string): string[] {
 
   // Common skill patterns
   const skillPatterns = [
-    /\b(react|vue|angular|javascript|typescript|node\.?js|python|java|c\+\+|c#|go|rust)\b/gi,
-    /\b(html|css|sass|less|tailwind|bootstrap)\b/gi,
-    /\b(express|django|flask|spring|laravel|rails)\b/gi,
-    /\b(mysql|postgresql|mongodb|redis|elasticsearch)\b/gi,
-    /\b(docker|kubernetes|aws|azure|gcp|google cloud)\b/gi,
-    /\b(git|ci\/cd|jenkins|github actions|gitlab)\b/gi,
-    /\b(rest|graphql|api|microservices)\b/gi,
-    /\b(agile|scrum|kanban|jira)\b/gi,
+    /\b(react|vue|angular|javascript|typescript|node\.?js|python|java|c\+\+|c#|go|rust|php|ruby|swift|kotlin)\b/gi,
+    /\b(html|css|sass|less|tailwind|bootstrap|material-?ui|chakra)\b/gi,
+    /\b(express|django|flask|spring|laravel|rails|fastapi|nest\.?js)\b/gi,
+    /\b(mysql|postgresql|mongodb|redis|elasticsearch|dynamodb|cassandra|oracle)\b/gi,
+    /\b(docker|kubernetes|aws|azure|gcp|google cloud|heroku|vercel|netlify)\b/gi,
+    /\b(git|ci\/cd|jenkins|github actions|gitlab|bitbucket|travis)\b/gi,
+    /\b(rest|restful|graphql|api|microservices|soap)\b/gi,
+    /\b(agile|scrum|kanban|jira|confluence|trello)\b/gi,
+    /\b(next\.?js|nuxt\.?js|gatsby|remix|svelte|solid)\b/gi,
+    /\b(webpack|vite|rollup|parcel|babel|esbuild)\b/gi,
+    /\b(jest|mocha|chai|cypress|playwright|selenium|testing library)\b/gi,
+    /\b(redux|mobx|zustand|recoil|context api|vuex|pinia)\b/gi,
   ];
 
   skillPatterns.forEach(pattern => {
@@ -130,6 +135,33 @@ export function extractJobKeywords(jobDescription: string): string[] {
       });
     }
   });
+
+  // If no specific skills found, add generic skills based on job type
+  if (keywords.length === 0) {
+    // Check for job role keywords
+    if (/\b(developer|engineer|programmer|coder)\b/i.test(text)) {
+      // Add common developer skills
+      keywords.push('JavaScript', 'HTML', 'CSS', 'Git');
+      
+      if (/\b(frontend|front-end|front end|ui|user interface)\b/i.test(text)) {
+        keywords.push('React', 'TypeScript', 'Responsive Design');
+      } else if (/\b(backend|back-end|back end|server|api)\b/i.test(text)) {
+        keywords.push('Node.js', 'API Development', 'Database');
+      } else if (/\b(full-?stack|fullstack)\b/i.test(text)) {
+        keywords.push('React', 'Node.js', 'MongoDB', 'API Development');
+      } else {
+        // Generic developer role
+        keywords.push('Programming', 'Problem Solving', 'Software Development');
+      }
+    }
+    
+    // Add experience level as a "skill"
+    if (/\b(junior|entry|graduate)\b/i.test(text)) {
+      keywords.push('Learning Ability', 'Team Collaboration');
+    } else if (/\b(senior|lead|principal)\b/i.test(text)) {
+      keywords.push('Leadership', 'Architecture', 'Mentoring');
+    }
+  }
 
   return keywords;
 }
@@ -181,6 +213,83 @@ export function extractExperienceLevel(jobDescription: string): string {
   }
 
   return 'Mid'; // Default
+}
+
+/**
+ * Extract skills from raw resume text (fallback when parsing fails)
+ */
+export function extractSkillsFromRawText(text: string): string[] {
+  const skills: string[] = [];
+  const lowerText = text.toLowerCase();
+
+  // Comprehensive skill list
+  const commonSkills = [
+    // Frontend
+    'React', 'Vue', 'Angular', 'JavaScript', 'TypeScript', 'HTML', 'CSS',
+    'Next.js', 'Nuxt.js', 'Svelte', 'jQuery', 'Bootstrap', 'Tailwind',
+    'Material-UI', 'Sass', 'Less', 'Webpack', 'Vite', 'Redux', 'MobX',
+    
+    // Backend
+    'Node.js', 'Express', 'Python', 'Django', 'Flask', 'FastAPI',
+    'Java', 'Spring', 'Spring Boot', 'PHP', 'Laravel', 'Ruby', 'Rails',
+    'Go', 'Rust', 'C++', 'C#', '.NET', 'ASP.NET',
+    
+    // Database
+    'MySQL', 'PostgreSQL', 'MongoDB', 'Redis', 'Elasticsearch',
+    'DynamoDB', 'Cassandra', 'Oracle', 'SQL Server', 'SQLite',
+    
+    // DevOps & Cloud
+    'Docker', 'Kubernetes', 'AWS', 'Azure', 'Google Cloud', 'GCP',
+    'CI/CD', 'Jenkins', 'GitHub Actions', 'GitLab', 'Terraform',
+    'Ansible', 'Heroku', 'Vercel', 'Netlify',
+    
+    // Tools & Others
+    'Git', 'GitHub', 'GitLab', 'Bitbucket', 'Jira', 'Confluence',
+    'REST', 'RESTful', 'GraphQL', 'API', 'Microservices',
+    'Agile', 'Scrum', 'Kanban', 'TDD', 'BDD',
+    
+    // Testing
+    'Jest', 'Mocha', 'Chai', 'Cypress', 'Playwright', 'Selenium',
+    'Testing Library', 'JUnit', 'PyTest',
+    
+    // Mobile
+    'React Native', 'Flutter', 'Swift', 'Kotlin', 'iOS', 'Android',
+    
+    // AI/ML
+    'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch',
+    'Scikit-learn', 'Pandas', 'NumPy', 'NLP', 'Computer Vision',
+    
+    // Other
+    'Linux', 'Unix', 'Bash', 'Shell Scripting', 'PowerShell',
+    'Nginx', 'Apache', 'Tomcat', 'WebSockets', 'Socket.io',
+  ];
+
+  // Check for each skill in the text
+  commonSkills.forEach(skill => {
+    // Create regex pattern that matches the skill as a whole word
+    const pattern = new RegExp(`\\b${skill.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (pattern.test(text)) {
+      if (!skills.includes(skill)) {
+        skills.push(skill);
+      }
+    }
+  });
+
+  // Also check for skills in common formats
+  // e.g., "Skills: React, Node.js, MongoDB"
+  const skillsSectionMatch = text.match(/(?:skills?|technologies?|technical skills?|core competencies)[:\s]+([^\n]+)/i);
+  if (skillsSectionMatch) {
+    const skillsText = skillsSectionMatch[1];
+    const extractedSkills = skillsText.split(/[,;|•·]/).map(s => s.trim()).filter(s => s.length > 0);
+    extractedSkills.forEach(skill => {
+      const normalized = normalizeSkill(skill);
+      if (normalized && !skills.includes(normalized)) {
+        skills.push(normalized);
+      }
+    });
+  }
+
+  return skills;
 }
 
 /**
@@ -285,6 +394,7 @@ export default {
   generateApplicationEmail,
   extractJobKeywords,
   extractExperienceLevel,
+  extractSkillsFromRawText,
   validateResumeData,
   formatResumeForDisplay,
 };

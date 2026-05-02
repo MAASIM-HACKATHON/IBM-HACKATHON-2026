@@ -20,8 +20,9 @@ import {
   generateResume,
   extractJobKeywords,
   extractExperienceLevel,
+  extractSkillsFromRawText,
 } from '../services/resumeService';
-import { analyzeResume, getSampleJobs } from '../services/atsService';
+import { analyzeResume } from '../services/atsService';
 
 interface UseResumeBuilderReturn extends ResumeBuilderState {
   // File Upload
@@ -85,6 +86,16 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
       // Parse the file
       const parsedData = await parseResumeFile(file);
 
+      // Fallback: If no skills were parsed, try extracting from raw text
+      if (parsedData.parsedSections.skills.length === 0 && parsedData.rawText) {
+        const extractedSkills = extractSkillsFromRawText(parsedData.rawText);
+        
+        if (extractedSkills.length > 0) {
+          parsedData.parsedSections.skills = extractedSkills;
+          parsedData.skills = extractedSkills;
+        }
+      }
+
       setState(prev => ({
         ...prev,
         uploadedFile,
@@ -123,31 +134,57 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
       return;
     }
 
+    // Check if job description is too short/vague
+    if (state.jobDescription.trim().length < 20) {
+      setState(prev => ({
+        ...prev,
+        error: 'Job description is too short. Please provide a detailed job description with required skills, responsibilities, and qualifications (at least 20 characters).'
+      }));
+      return;
+    }
+
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Client-side analysis as fallback
-      const keywords = extractJobKeywords(state.jobDescription);
-      const experienceLevel = extractExperienceLevel(state.jobDescription);
-
-      const analysis: JobDescriptionAnalysis = {
-        extractedKeywords: keywords,
-        requiredSkills: keywords.slice(0, 10),
-        preferredSkills: keywords.slice(10, 15),
-        technologies: keywords.filter(k => 
-          ['React', 'Vue', 'Angular', 'Node.js', 'Python', 'Java'].includes(k)
-        ),
-        experienceLevel,
-        responsibilities: [],
-        qualifications: [],
-      };
-
-      // Try server-side analysis
+      // Try server-side analysis first
+      let analysis: JobDescriptionAnalysis | null = null;
+      
       try {
-        const serverAnalysis = await analyzeJobDescription(state.jobDescription);
-        Object.assign(analysis, serverAnalysis);
+        analysis = await analyzeJobDescription(state.jobDescription);
       } catch (error) {
-        console.warn('Server analysis failed, using client-side analysis:', error);
+        // Silently fall back to client-side analysis
+      }
+
+      // If server analysis failed or returned empty results, use client-side analysis
+      if (!analysis || !analysis.requiredSkills || analysis.requiredSkills.length === 0) {
+        const keywords = extractJobKeywords(state.jobDescription);
+        const experienceLevel = extractExperienceLevel(state.jobDescription);
+
+        // If still no keywords found, show error
+        if (keywords.length === 0) {
+          setState(prev => ({
+            ...prev,
+            loading: false,
+            error: 'Could not extract skills from job description. Please provide a more detailed job description with specific technical skills and requirements.'
+          }));
+          return;
+        }
+
+        const requiredSkills = keywords.slice(0, 10);
+        const preferredSkills = keywords.length > 10 ? keywords.slice(10, 15) : [];
+        const technologies = keywords.filter(k =>
+          ['React', 'Vue', 'Angular', 'Node.js', 'Python', 'Java', 'TypeScript', 'MongoDB', 'PostgreSQL', 'MySQL'].includes(k)
+        );
+
+        analysis = {
+          extractedKeywords: keywords,
+          requiredSkills,
+          preferredSkills,
+          technologies,
+          experienceLevel,
+          responsibilities: [],
+          qualifications: [],
+        };
       }
 
       setState(prev => ({
@@ -188,8 +225,6 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
       }));
     } catch (error) {
       // Fallback to basic formatting if API fails
-      console.warn('Resume generation failed, using fallback:', error);
-      
       const fallbackResume: ResumeGenerationResponse = {
         generatedResume: generateFallbackResume(state.parsedData, 'ats-optimized'),
         format: 'plain',
@@ -235,8 +270,6 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
       }));
     } catch (error) {
       // Fallback to basic formatting if API fails
-      console.warn('CV generation failed, using fallback:', error);
-      
       const fallbackCV: ResumeGenerationResponse = {
         generatedResume: generateFallbackResume(state.parsedData, 'full-cv'),
         format: 'plain',
@@ -265,27 +298,66 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
       return;
     }
 
+    // Validate job analysis exists and has required skills
+    if (!state.jobAnalysis) {
+      setState(prev => ({
+        ...prev,
+        error: 'Please analyze the job description first by clicking "Analyze Job Description"'
+      }));
+      return;
+    }
+
+    if (!state.jobAnalysis.requiredSkills || state.jobAnalysis.requiredSkills.length === 0) {
+      setState(prev => ({
+        ...prev,
+        error: 'No required skills found in job description. Please provide a more detailed job description with specific technical skills.'
+      }));
+      return;
+    }
+
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Get jobs from job description analysis or use sample jobs
-      const jobs = state.jobAnalysis
-        ? [{
-            job_title: 'Target Position',
-            required_skills: state.jobAnalysis.requiredSkills,
-            preferred_skills: state.jobAnalysis.preferredSkills,
-            keywords: state.jobAnalysis.extractedKeywords,
-          }]
-        : getSampleJobs();
+      // Get jobs from job description analysis
+      const jobs = [{
+        job_title: 'Target Position',
+        required_skills: state.jobAnalysis.requiredSkills,
+        preferred_skills: state.jobAnalysis.preferredSkills || [],
+        keywords: state.jobAnalysis.extractedKeywords,
+      }];
 
-      const result: ATSAnalysisResponse = await analyzeResume(state.parsedData, jobs);
+      // Prepare resume payload
+      const resumePayload = {
+        skills: state.parsedData.parsedSections.skills,
+        workExperience: state.parsedData.parsedSections.workExperience.map(exp => ({
+          title: exp.title,
+          company: exp.company,
+          duration: exp.duration,
+          yearsOfExperience: exp.yearsOfExperience,
+          description: exp.description,
+          skills: exp.skills,
+        })),
+        projects: state.parsedData.parsedSections.projects.map(proj => ({
+          name: proj.name,
+          description: proj.description,
+          technologies: proj.technologies,
+          skills: proj.technologies,
+        })),
+        education: state.parsedData.parsedSections.education,
+        certifications: state.parsedData.parsedSections.certifications,
+      };
+
+      const result: ATSAnalysisResponse = await analyzeResume(resumePayload, jobs);
 
       // Enhance with score breakdown
       const enhancedResult: ATSScoreResult = {
         ...result,
         scoreBreakdown: {
           keywordMatch: result.job_matches[0]?.match_score || 0,
-          skillsMatch: (result.detected_skills.length / (state.jobAnalysis?.requiredSkills.length || 10)) * 100,
+          skillsMatch: Math.min(
+            (result.detected_skills.length / Math.max(state.jobAnalysis?.requiredSkills.length || 10, 1)) * 100,
+            100
+          ),
           experienceMatch: result.experience_level === state.jobAnalysis?.experienceLevel ? 100 : 70,
           formatScore: 85, // Assume good format
         },
@@ -309,7 +381,7 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         error: error instanceof Error ? error.message : 'Failed to run ATS analysis',
       }));
     }
-  }, [state.parsedData, state.jobAnalysis]);
+  }, [state.parsedData, state.jobAnalysis, state.jobDescription]);
 
   // Navigation
   const goToStep = useCallback((step: ResumeBuilderStep) => {
@@ -319,8 +391,11 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
   const nextStep = useCallback(() => {
     const steps: ResumeBuilderStep[] = ['upload', 'job-description', 'generate', 'results'];
     const currentIndex = steps.indexOf(state.currentStep);
-    if (currentIndex < steps.length - 1) {
-      setState(prev => ({ ...prev, currentStep: steps[currentIndex + 1] }));
+    if (currentIndex < steps.length - 1 && currentIndex >= 0) {
+      const nextStep = steps[currentIndex + 1];
+      if (nextStep) {
+        setState(prev => ({ ...prev, currentStep: nextStep }));
+      }
     }
   }, [state.currentStep]);
 
@@ -328,7 +403,10 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
     const steps: ResumeBuilderStep[] = ['upload', 'job-description', 'generate', 'results'];
     const currentIndex = steps.indexOf(state.currentStep);
     if (currentIndex > 0) {
-      setState(prev => ({ ...prev, currentStep: steps[currentIndex - 1] }));
+      const prevStep = steps[currentIndex - 1];
+      if (prevStep) {
+        setState(prev => ({ ...prev, currentStep: prevStep }));
+      }
     }
   }, [state.currentStep]);
 

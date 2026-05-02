@@ -33,14 +33,46 @@ function JobDescriptionSection({
       </div>
 
       <div className="p-6 space-y-4">
+        {/* Helper Text */}
+        <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">
+          <div className="flex items-start gap-2">
+            <svg className="h-5 w-5 shrink-0 text-blue-300 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-xs text-blue-200 leading-relaxed">
+              <p className="font-medium mb-1">💡 For best results:</p>
+              <ul className="space-y-1 ml-4 list-disc">
+                <li>Include specific technical skills and technologies</li>
+                <li>Add required qualifications and experience level</li>
+                <li>Paste the complete job description (minimum 20 characters)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
         <textarea
           value={jobDescription}
           onChange={(e) => onJobDescriptionChange(e.target.value)}
-          placeholder="Paste the job description here to optimize your resume for this specific role..."
+          placeholder="Paste the job description here to optimize your resume for this specific role...&#10;&#10;Example: We are looking for a Senior Full Stack Developer with 5+ years of experience in React, Node.js, TypeScript, and AWS. The ideal candidate should have strong problem-solving skills..."
           className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
           rows={8}
           disabled={loading}
         />
+
+        {/* Character count indicator */}
+        <div className="flex items-center justify-between text-xs">
+          <span className={`${jobDescription.length < 20 ? 'text-amber-400' : 'text-slate-400'}`}>
+            {jobDescription.length} characters {jobDescription.length < 20 && '(minimum 20 required)'}
+          </span>
+          {jobDescription.length >= 20 && (
+            <span className="text-emerald-400 flex items-center gap-1">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Ready to analyze
+            </span>
+          )}
+        </div>
 
         <button
           onClick={onAnalyze}

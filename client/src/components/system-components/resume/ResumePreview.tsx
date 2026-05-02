@@ -1,6 +1,8 @@
 import { type ReactElement } from 'react';
+import toast from 'react-hot-toast';
 import type { ParsedResumeData, ResumeGenerationResponse } from '../../../types/resume.types';
 import { formatResumeForDisplay } from '../../../services/resumeService';
+import { downloadResumeAsText, copyResumeToClipboard } from '../../../utilities/system-utils/pdfGenerator';
 
 interface ResumePreviewProps {
   originalResume?: ParsedResumeData;
@@ -178,42 +180,58 @@ function ResumePreview({
         )}
 
         {/* Download Actions */}
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            onClick={() => {
-              const blob = new Blob([generatedResume.generatedResume], { type: 'text/plain' });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'optimized-resume.txt';
-              a.click();
-              URL.revokeObjectURL(url);
-            }}
-            className="flex-1 rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20"
-            type="button"
-          >
-            <span className="flex items-center justify-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Download Resume
-            </span>
-          </button>
+        <div className="mt-6 space-y-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                try {
+                  if (originalResume) {
+                    downloadResumeAsText(originalResume, 'full-cv');
+                    toast.success('📄 Resume downloaded successfully!');
+                  }
+                } catch (error) {
+                  toast.error('Failed to download resume');
+                }
+              }}
+              className="flex-1 rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20"
+              type="button"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Formatted Resume
+              </span>
+            </button>
 
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(generatedResume.generatedResume);
-            }}
-            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
-            type="button"
-          >
-            <span className="flex items-center justify-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy to Clipboard
-            </span>
-          </button>
+            <button
+              onClick={async () => {
+                try {
+                  if (originalResume) {
+                    await copyResumeToClipboard(originalResume, 'full-cv');
+                    toast.success('📋 Resume copied to clipboard!');
+                  }
+                } catch (error) {
+                  toast.error('Failed to copy resume');
+                }
+              }}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
+              type="button"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy Formatted Resume
+              </span>
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">
+            <p className="text-xs text-blue-200 leading-relaxed">
+              💡 <strong>Tip:</strong> The formatted resume uses professional styling with sections, bullet points, and proper spacing. You can paste it into any word processor or convert it to PDF.
+            </p>
+          </div>
         </div>
       </div>
     </section>
