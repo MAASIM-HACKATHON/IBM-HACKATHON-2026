@@ -223,9 +223,6 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
   if (mimeType === 'application/pdf') {
     console.log('✓ Detected as PDF - using pdf-parse v1.x library');
     try {
-      // pdf-parse v1.x works with Buffer directly, no Uint8Array conversion needed
-      console.log('✓ Buffer size:', buffer.byteLength, 'bytes');
-      
       // Validate buffer contains PDF signature
       const uint8Array = new Uint8Array(buffer);
       const pdfSignature = String.fromCharCode(...uint8Array.slice(0, 4));
@@ -236,14 +233,16 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
       
       console.log('✓ Parsing PDF with pdf-parse v1.x...');
       
-      // CRITICAL FIX: pdf-parse v1.x is a simple function that works without workers
-      // It uses pdfjs-dist internally but handles worker configuration automatically
-      // This version doesn't have the "Cannot find module 'pdf.worker.mjs'" error
-      // Use require() instead of dynamic import() to avoid test file execution issues
-      const pdfParse = require('pdf-parse');
+      // CRITICAL FIX: Convert ArrayBuffer to Node.js Buffer
+      // pdf-parse requires Node.js Buffer, not ArrayBuffer
+      const nodeBuffer = Buffer.from(buffer);
+      console.log('✓ Converted to Node.js Buffer, size:', nodeBuffer.length, 'bytes');
+      
+      // Use dynamic import to avoid test file loading issues with require()
+      const pdfParse = (await import('pdf-parse')).default;
       
       // Parse PDF - v1.x accepts Buffer directly and returns a promise
-      const result = await pdfParse(buffer);
+      const result = await pdfParse(nodeBuffer);
       
       console.log('✓ PDF parsed successfully');
       console.log('  - Total pages:', result.numpages);

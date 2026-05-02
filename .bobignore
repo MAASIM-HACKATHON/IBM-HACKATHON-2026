@@ -34,3 +34,5 @@ dist/
 !core/
 !intelligence/
 !demo/
+!01-documentations/pdf-parse-fix/
+!01-documentations/pdf-parse-fix/**
