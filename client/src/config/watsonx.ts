@@ -15,14 +15,24 @@ interface SelectOption<TValue extends string> {
 
 export const EMAIL_PURPOSE_OPTIONS: SelectOption<EmailPurpose>[] = [
   {
-    value: 'application',
-    label: 'Application',
+    value: 'job-application',
+    label: 'Job Application',
     description: 'Draft a job application email with strong opening context.',
   },
   {
     value: 'follow-up',
     label: 'Follow-up',
     description: 'Draft a polite follow-up after sending an application.',
+  },
+  {
+    value: 'thank-you',
+    label: 'Thank You',
+    description: 'Express gratitude after an interview or conversation.',
+  },
+  {
+    value: 'networking',
+    label: 'Networking',
+    description: 'Reach out to connect with professionals in your field.',
   },
   {
     value: 'inquiry',
@@ -35,46 +45,56 @@ export const EMAIL_TONE_OPTIONS: SelectOption<EmailTone>[] = [
   {
     value: 'formal',
     label: 'Formal',
-    description: 'Careful and polished language for a traditional recruiter flow.',
+    description: 'Careful and polished language for traditional professional settings.',
   },
   {
-    value: 'confident',
-    label: 'Confident',
-    description: 'Direct and assertive while staying professional.',
+    value: 'professional',
+    label: 'Professional',
+    description: 'Balanced and polished tone suitable for most business contexts.',
   },
   {
-    value: 'casual',
-    label: 'Casual',
-    description: 'More relaxed wording for warm, human outreach.',
+    value: 'friendly',
+    label: 'Friendly',
+    description: 'Warm and conversational while maintaining professionalism.',
+  },
+  {
+    value: 'enthusiastic',
+    label: 'Enthusiastic',
+    description: 'Energetic and passionate tone showing genuine excitement.',
   },
 ];
 
 export const EMAIL_REFINEMENT_OPTIONS: SelectOption<RefinementOption>[] = [
   {
     value: 'none',
-    label: 'No extra refinement',
+    label: 'No refinement',
     description: 'Generate the first clean draft only.',
   },
   {
-    value: 'shorten',
-    label: 'Shorten',
-    description: 'Keep the message tighter and easier to scan.',
+    value: 'shorter',
+    label: 'Make it shorter',
+    description: 'Keep the message concise and easy to scan.',
   },
   {
-    value: 'professional',
-    label: 'More professional',
-    description: 'Make the wording more polished and executive.',
+    value: 'longer',
+    label: 'Make it longer',
+    description: 'Expand with more details and context.',
   },
   {
-    value: 'confident',
-    label: 'More confident',
-    description: 'Make the message sound more decisive and impact-focused.',
+    value: 'more-formal',
+    label: 'More formal',
+    description: 'Polish the wording to sound more formal and executive.',
+  },
+  {
+    value: 'more-casual',
+    label: 'More casual',
+    description: 'Make the tone more relaxed and conversational.',
   },
 ];
 
 export const DEFAULT_EMAIL_FORM_VALUES: EmailFormValues = {
-  purpose: 'application',
-  tone: 'formal',
+  purpose: 'job-application',
+  tone: 'professional',
   refinement: 'none',
   jobRole: 'Frontend Developer Intern',
   company: 'IBM',

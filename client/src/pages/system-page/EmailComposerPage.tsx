@@ -184,34 +184,20 @@ function EmailComposerPage(): ReactElement {
   };
 
   return (
-    <main className="min-h-screen px-4 py-10 text-slate-100 sm:px-6 lg:px-10 xl:px-12">
+    <main className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 px-4 py-10 text-slate-900 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100 sm:px-6 lg:px-10 xl:px-12">
       <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
-        {/* Back Button */}
-        <div className="flex items-center gap-4">
-          <button
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-slate-200 transition hover:border-white/30 hover:text-white"
-            onClick={() => navigate('/')}
-            type="button"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Home
-          </button>
-        </div>
-
-        <section className="overflow-hidden rounded-[32px] border border-cyan-400/20 bg-slate-950/70 shadow-[0_30px_80px_rgba(7,14,26,0.45)] backdrop-blur">
+        <section className="overflow-hidden rounded-[32px] border border-cyan-400/20 bg-white/80 shadow-[0_20px_70px_rgba(0,0,0,0.1)] backdrop-blur dark:bg-slate-950/70 dark:shadow-[0_30px_80px_rgba(7,14,26,0.45)]">
           <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.3fr_0.9fr] lg:px-10 lg:py-10">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-100">
+              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700 dark:text-emerald-100">
                 ✓ IBM watsonx AI Connected
               </div>
 
               <div className="space-y-4">
-                <h1 className="max-w-3xl font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+                <h1 className="max-w-3xl font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-4xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-5xl">
                   Smart Email Composer powered by IBM Watsonx AI
                 </h1>
-                <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
+                <p className="max-w-3xl text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
                   Generate professional emails using IBM's Granite AI model. Validates inputs, crafts 
                   personalized content, and delivers polished drafts in seconds—perfect for job applications 
                   and business communications.

@@ -1,6 +1,7 @@
 import { Toaster } from 'react-hot-toast';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import Navbar from './components/system-components/Navbar';
 import HomePage from './pages/system-page/HomePage';
 import EmailComposerPage from './pages/system-page/EmailComposerPage';
 import ResumeBuilderPage from './pages/system-page/ResumeBuilderPage';
@@ -34,6 +35,7 @@ function App(): JSX.Element {
         }}
       />
       <BrowserRouter>
+        <Navbar />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/email-composer" element={<EmailComposerPage />} />

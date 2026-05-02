@@ -1,6 +1,6 @@
-export type EmailPurpose = 'application' | 'follow-up' | 'inquiry';
-export type EmailTone = 'formal' | 'casual' | 'confident';
-export type RefinementOption = 'none' | 'shorten' | 'professional' | 'confident';
+export type EmailPurpose = 'job-application' | 'follow-up' | 'thank-you' | 'networking' | 'inquiry';
+export type EmailTone = 'formal' | 'professional' | 'friendly' | 'enthusiastic';
+export type RefinementOption = 'none' | 'shorter' | 'longer' | 'more-formal' | 'more-casual';
 
 export interface EmailFormValues {
   company: string;
@@ -19,22 +19,26 @@ export interface GeneratedEmailDraft {
 }
 
 const PURPOSE_LABELS: Record<EmailPurpose, string> = {
-  application: 'Job application',
+  'job-application': 'Job application',
   'follow-up': 'Application follow-up',
-  inquiry: 'Opportunity inquiry',
+  'thank-you': 'Thank you email',
+  'networking': 'Networking outreach',
+  'inquiry': 'Opportunity inquiry',
 };
 
 const TONE_INSTRUCTIONS: Record<EmailTone, string> = {
   formal: 'formal, respectful, and recruiter-friendly',
-  casual: 'warm, conversational, and still professional',
-  confident: 'confident, clear, and results-oriented',
+  professional: 'professional, balanced, and polished',
+  friendly: 'warm, conversational, and still professional',
+  enthusiastic: 'enthusiastic, energetic, and passionate',
 };
 
 const REFINEMENT_INSTRUCTIONS: Record<RefinementOption, string> = {
   none: 'No additional refinement is needed beyond a clean first draft.',
-  shorten: 'Keep the email concise and easy to scan in under 180 words.',
-  professional: 'Polish the language so it sounds more professional and executive-ready.',
-  confident: 'Strengthen the confidence level while keeping the tone respectful.',
+  shorter: 'Keep the email concise and easy to scan, under 150 words.',
+  longer: 'Expand the content with more details and context, around 250-300 words.',
+  'more-formal': 'Polish the language to sound more formal and executive-ready.',
+  'more-casual': 'Make the tone more relaxed and conversational while staying professional.',
 };
 
 export function normalizeKeyPoints(keyPoints: string): string[] {
@@ -63,7 +67,7 @@ export function validateEmailInput(values: EmailFormValues): string[] {
 }
 
 function getTemplateSections(purpose: EmailPurpose): string[] {
-  if (purpose === 'application') {
+  if (purpose === 'job-application') {
     return [
       'Greeting',
       'Opening that states the role and intent to apply',
@@ -78,6 +82,24 @@ function getTemplateSections(purpose: EmailPurpose): string[] {
       'Opening that references a previous application or conversation',
       'Body that reaffirms fit and continued interest',
       'Closing that politely asks for an update',
+    ];
+  }
+
+  if (purpose === 'thank-you') {
+    return [
+      'Greeting',
+      'Opening that expresses gratitude for the opportunity or conversation',
+      'Body that reinforces interest and highlights key takeaways',
+      'Closing that looks forward to next steps',
+    ];
+  }
+
+  if (purpose === 'networking') {
+    return [
+      'Greeting',
+      'Opening that introduces yourself and explains the connection request',
+      'Body that shows genuine interest and offers value',
+      'Closing that suggests a specific next step (coffee, call, etc.)',
     ];
   }
 
