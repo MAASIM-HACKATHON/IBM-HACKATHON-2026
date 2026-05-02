@@ -41,5 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 # pdf-parse workaround test files
+# IMPORTANT: 05-versions-space.pdf MUST be committed (required by pdf-parse library)
+!/test/data/05-versions-space.pdf
 /test/data/*.pdf
 !test/README.md

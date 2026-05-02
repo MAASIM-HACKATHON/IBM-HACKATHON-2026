@@ -8,7 +8,9 @@
     "start": "node node_modules/next/dist/bin/next start -p 3001",
     "lint": "node node_modules/eslint/bin/eslint.js .",
     "prisma:generate": "node node_modules/prisma/build/index.js generate",
-    "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev"
+    "prisma:migrate": "node node_modules/prisma/build/index.js migrate dev",
+    "postinstall": "node setup-pdf-workaround.js",
+    "setup": "node setup-pdf-workaround.js"
   },
   "dependencies": {
     "@ibm-cloud/watsonx-ai": "^1.7.11",
