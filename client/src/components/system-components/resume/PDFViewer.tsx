@@ -5,8 +5,6 @@
 
 import { useState, useCallback, useEffect, type ReactElement } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
-import 'react-pdf/dist/esm/Page/TextLayer.css';
 import toast from 'react-hot-toast';
 
 // Configure PDF.js worker
@@ -413,8 +411,6 @@ function PDFViewer({
                     <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
                   </div>
                 }
-                renderTextLayer={true}
-                renderAnnotationLayer={true}
                 className="shadow-lg"
               />
             </Document>
