@@ -12,7 +12,7 @@ import type {
   ApplicationEmailResponse,
 } from '../types/resume.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /**
  * Generate AI-powered resume (ATS-optimized or Full CV)
@@ -62,20 +62,64 @@ export async function analyzeJobDescription(
  * Parse uploaded resume file (PDF/DOCX)
  */
 export async function parseResumeFile(file: File): Promise<ParsedResumeData> {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const response = await fetch(`${API_BASE_URL}/resume/parse`, {
-    method: 'POST',
-    body: formData,
+  const timestamp = new Date().toISOString();
+  console.log(`\n[${timestamp}] 🌐 CLIENT SERVICE: parseResumeFile called`);
+  console.log('API Base URL:', API_BASE_URL);
+  console.log('Endpoint:', `${API_BASE_URL}/resume/parse`);
+  console.log('File to parse:', {
+    name: file.name,
+    type: file.type,
+    size: `${(file.size / 1024).toFixed(2)} KB`,
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Failed to parse resume file');
-  }
+  const formData = new FormData();
+  formData.append('file', file);
+  console.log('✓ FormData created with file attached');
 
-  return response.json();
+  console.log(`\n[${new Date().toISOString()}] 📡 Sending POST request to server...`);
+  const fetchStartTime = Date.now();
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/resume/parse`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const fetchEndTime = Date.now();
+    console.log(`✓ Response received in ${fetchEndTime - fetchStartTime}ms`);
+    console.log('Response status:', response.status, response.statusText);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      console.error(`\n[${new Date().toISOString()}] ❌ SERVER ERROR RESPONSE`);
+      console.error('Status:', response.status);
+      console.error('Status Text:', response.statusText);
+      
+      const error = await response.json();
+      console.error('Error details:', error);
+      throw new Error(error.error || 'Failed to parse resume file');
+    }
+
+    console.log(`\n[${new Date().toISOString()}] ✅ Parsing response body...`);
+    const parsedData = await response.json();
+    
+    console.log('✓ Response parsed successfully');
+    console.log('Parsed data structure:', {
+      hasRawText: !!parsedData.rawText,
+      rawTextLength: parsedData.rawText?.length || 0,
+      hasParsedSections: !!parsedData.parsedSections,
+      sectionsKeys: parsedData.parsedSections ? Object.keys(parsedData.parsedSections) : [],
+    });
+    
+    console.log(`[${new Date().toISOString()}] ✅ CLIENT SERVICE: parseResumeFile completed successfully\n`);
+    return parsedData;
+  } catch (error) {
+    console.error(`\n[${new Date().toISOString()}] ❌ CLIENT SERVICE ERROR`);
+    console.error('Error in parseResumeFile:', error);
+    console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
+    throw error;
+  }
 }
 
 /**
@@ -205,7 +249,7 @@ export function extractExperienceLevel(jobDescription: string): string {
 
   // Check for years of experience
   const yearsMatch = text.match(/(\d+)\+?\s*years?/i);
-  if (yearsMatch) {
+  if (yearsMatch && yearsMatch[1]) {
     const years = parseInt(yearsMatch[1]);
     if (years >= 6) return 'Senior';
     if (years >= 3) return 'Mid';
@@ -220,7 +264,6 @@ export function extractExperienceLevel(jobDescription: string): string {
  */
 export function extractSkillsFromRawText(text: string): string[] {
   const skills: string[] = [];
-  const lowerText = text.toLowerCase();
 
   // Comprehensive skill list
   const commonSkills = [
@@ -278,7 +321,7 @@ export function extractSkillsFromRawText(text: string): string[] {
   // Also check for skills in common formats
   // e.g., "Skills: React, Node.js, MongoDB"
   const skillsSectionMatch = text.match(/(?:skills?|technologies?|technical skills?|core competencies)[:\s]+([^\n]+)/i);
-  if (skillsSectionMatch) {
+  if (skillsSectionMatch && skillsSectionMatch[1]) {
     const skillsText = skillsSectionMatch[1];
     const extractedSkills = skillsText.split(/[,;|•·]/).map(s => s.trim()).filter(s => s.length > 0);
     extractedSkills.forEach(skill => {

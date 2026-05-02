@@ -1,4 +1,4 @@
-import { type ReactElement, useState } from 'react';
+import { type ReactElement, useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useResumeBuilder } from '../../hooks/useResumeBuilder';
 import FileUploadSection from '../../components/system-components/resume/FileUploadSection';
@@ -8,10 +8,73 @@ import ATSScoreCard from '../../components/system-components/resume/ATSScoreCard
 import ResumePreview from '../../components/system-components/resume/ResumePreview';
 import EmailGeneratorModal from '../../components/system-components/resume/EmailGeneratorModal';
 
+const DRAFT_STORAGE_KEY = 'resume-builder-draft';
+const DRAFT_TIMESTAMP_KEY = 'resume-builder-draft-timestamp';
+
 function ResumeBuilderPage(): ReactElement {
   const resumeBuilder = useResumeBuilder();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [viewMode, setViewMode] = useState<'split' | 'original' | 'optimized'>('split');
+  const [lastSaved, setLastSaved] = useState<Date | null>(() => {
+    const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
+    return timestamp ? new Date(timestamp) : null;
+  });
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
+        
+        // Restore job description if it exists
+        if (parsed.jobDescription) {
+          resumeBuilder.setJobDescription(parsed.jobDescription);
+        }
+        
+        // Show toast notification if draft was loaded
+        if (timestamp) {
+          const savedDate = new Date(timestamp);
+          setTimeout(() => {
+            toast.success(`📝 Draft restored from ${savedDate.toLocaleString()}`, { duration: 4000 });
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+    }
+  }, []);
+
+  // Auto-save draft to localStorage whenever job description changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      try {
+        const draftData = {
+          jobDescription: resumeBuilder.jobDescription,
+        };
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData));
+        const now = new Date();
+        localStorage.setItem(DRAFT_TIMESTAMP_KEY, now.toISOString());
+        setLastSaved(now);
+      } catch (error) {
+        console.error('Failed to save draft:', error);
+      }
+    }, 1000); // Debounce for 1 second
+
+    return () => clearTimeout(timeoutId);
+  }, [resumeBuilder.jobDescription]);
+
+  const clearDraft = (): void => {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      localStorage.removeItem(DRAFT_TIMESTAMP_KEY);
+      setLastSaved(null);
+      toast.success('Draft cleared');
+    } catch (error) {
+      console.error('Failed to clear draft:', error);
+    }
+  };
 
   // Wrapper functions with toast notifications
   const handleFileUpload = async (file: File) => {
@@ -66,12 +129,13 @@ function ResumeBuilderPage(): ReactElement {
 
   const handleReset = () => {
     resumeBuilder.reset();
+    clearDraft();
     toast.success('🔄 Reset successful');
   };
 
   return (
     <main className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 px-4 py-10 text-slate-900 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100 sm:px-6 lg:px-10 xl:px-12">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-8 pb-16">
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-8 pb-16">
         {/* Hero Section */}
         <section className="overflow-hidden rounded-[32px] border border-purple-400/20 bg-white/80 shadow-[0_20px_70px_rgba(0,0,0,0.1)] backdrop-blur dark:bg-slate-950/70 dark:shadow-[0_30px_80px_rgba(7,14,26,0.45)]">
           <div className="grid gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1.3fr_0.9fr] lg:px-10 lg:py-10">
@@ -166,13 +230,18 @@ function ResumeBuilderPage(): ReactElement {
 
 
         {/* Main Content Grid */}
-        <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="grid gap-6 lg:grid-cols-2">
           {/* Left Column - Input Sections */}
-          <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8">
+          <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8 lg:p-10">
             <div className="flex items-start justify-between gap-4">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Input layer</p>
                 <h2 className="mt-3 text-2xl font-semibold text-white">Resume & Job Details</h2>
+                {lastSaved && (
+                  <p className="mt-2 text-xs text-slate-400">
+                    💾 Draft auto-saved at {lastSaved.toLocaleTimeString()}
+                  </p>
+                )}
               </div>
               {resumeBuilder.parsedData && (
                 <button
