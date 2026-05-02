@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent, type ReactElement, type ClipboardEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent, type ReactElement, type ClipboardEvent, type DragEvent, type ChangeEvent } from 'react';
 import toast from 'react-hot-toast';
 import {
   DEFAULT_EMAIL_FORM_VALUES,
@@ -9,6 +9,7 @@ import {
 import { useWatsonxEmailGenerator } from '../../hooks/useWatsonxEmailGenerator';
 import type { EmailFormValues } from '../../utilities/system-utils/emailGenerator';
 import { analyzeContentWithWatsonx } from '../../services/contentAnalysisService';
+import { processUploadedFile, formatFileSize } from '../../services/fileProcessingService';
 import LanguageSettingsModal from '../../components/system-components/LanguageSettingsModal';
 import type { SupportedLanguage } from '../../types/language.types';
 import { getLanguageByCode } from '../../config/languages';
@@ -47,6 +48,9 @@ function EmailComposerPage(): ReactElement {
     return timestamp ? new Date(timestamp) : null;
   });
   const [isLanguageSettingsOpen, setIsLanguageSettingsOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { error, generateDraft, loading, metadata, reset, result } =
     useWatsonxEmailGenerator();
@@ -95,11 +99,15 @@ function EmailComposerPage(): ReactElement {
       return; // Too short to analyze
     }
 
+    await analyzeContent(pastedText);
+  };
+
+  const analyzeContent = async (content: string): Promise<void> => {
     setIsAnalyzing(true);
     toast.loading('🤖 Analyzing content with Watsonx AI...', { id: 'analyze' });
     
     try {
-      const analysis = await analyzeContentWithWatsonx(pastedText);
+      const analysis = await analyzeContentWithWatsonx(content);
       
       if (analysis && analysis.confidence >= 30) {
         // Auto-fill detected fields
@@ -186,6 +194,86 @@ function EmailComposerPage(): ReactElement {
         });
       }, 1000);
     }
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (file: File): Promise<void> => {
+    setIsAnalyzing(true);
+    toast.loading(`📄 Processing ${file.name}...`, { id: 'file-upload' });
+    
+    try {
+      const result = await processUploadedFile(file);
+      
+      if (!result.success) {
+        toast.error(result.error || 'Failed to process file', { id: 'file-upload' });
+        return;
+      }
+      
+      // Update key points with extracted content
+      updateField('keyPoints', result.content);
+      setUploadedFileName(result.fileName);
+      
+      toast.success(
+        `✅ File processed: ${result.fileName} (${formatFileSize(result.fileSize)})`,
+        { id: 'file-upload', duration: 3000 }
+      );
+      
+      // Analyze the extracted content
+      if (result.content.length >= 50) {
+        await analyzeContent(result.content);
+      }
+    } catch (error) {
+      console.error('File upload failed:', error);
+      toast.error('Failed to process file. Please try again.', { id: 'file-upload' });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Handle file input change
+  const handleFileInputChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    if (file) {
+      await handleFileUpload(file);
+    }
+    // Reset input so the same file can be uploaded again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Handle drag and drop
+  const handleDragEnter = (event: DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>): void => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleDrop = async (event: DragEvent<HTMLDivElement>): Promise<void> => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    
+    const file = event.dataTransfer.files?.[0];
+    if (file) {
+      await handleFileUpload(file);
+    }
+  };
+
+  // Trigger file input click
+  const handleUploadClick = (): void => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -446,15 +534,75 @@ function EmailComposerPage(): ReactElement {
                     <span className="text-xs text-cyan-300 animate-pulse">🤖 Analyzing...</span>
                   )}
                 </div>
+                
+                {/* File Upload Area */}
+                <div
+                  className={`relative rounded-[24px] border-2 border-dashed transition-all ${
+                    isDragging
+                      ? 'border-cyan-300 bg-cyan-300/10'
+                      : 'border-white/20 bg-slate-900/40 hover:border-white/30'
+                  }`}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <div className="flex items-center justify-between gap-4 p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-cyan-400/10">
+                        <svg className="h-5 w-5 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">
+                          {uploadedFileName ? `📄 ${uploadedFileName}` : 'Upload or drag & drop a file'}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          Supports: TXT, PDF, DOCX, JSON, CSV, and more (max 10MB)
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-200 transition hover:border-cyan-400/50 hover:bg-cyan-400/20"
+                      onClick={handleUploadClick}
+                      type="button"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                  
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.json,.csv,.md,.html,.xml,.rtf"
+                    className="hidden"
+                    onChange={handleFileInputChange}
+                    type="file"
+                  />
+                  
+                  {/* Drag overlay */}
+                  {isDragging && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded-[24px] bg-cyan-300/20 backdrop-blur-sm">
+                      <div className="text-center">
+                        <svg className="mx-auto h-12 w-12 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                        </svg>
+                        <p className="mt-2 text-sm font-medium text-cyan-200">Drop file here</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
                 <textarea
                   className="min-h-40 w-full rounded-[24px] border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
                   onChange={(event) => handleKeyPointsChange(event.target.value)}
                   onPaste={handleKeyPointsPaste}
-                  placeholder="Paste job description, your notes, or key points here. Watsonx AI will auto-detect language and fill other fields for you!"
+                  placeholder="Paste job description, your notes, or key points here. Or upload a file above. Watsonx AI will auto-detect language and fill other fields for you!"
                   value={formValues.keyPoints}
                 />
                 <p className="text-xs leading-5 text-slate-400">
-                  💡 Paste any text (job description, email draft, notes) and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and detect language automatically.
+                  💡 Upload any file, paste text (job description, email draft, notes), and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and detect language automatically.
                 </p>
               </label>
 
