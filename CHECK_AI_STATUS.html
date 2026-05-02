@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Parser Status Check</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .loading {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .detail-value {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 AI Parser Status Check</h1>
+        
+        <div id="status" class="status loading">
+            ⏳ Checking AI parser status...
+        </div>
+        
+        <div id="details"></div>
+        
+        <button onclick="checkStatus()">🔄 Refresh Status</button>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            const statusDiv = document.getElementById('status');
+            const detailsDiv = document.getElementById('details');
+            
+            statusDiv.className = 'status loading';
+            statusDiv.innerHTML = '⏳ Checking AI parser status...';
+            detailsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/resume/ai-status');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Determine status class
+                let statusClass = 'success';
+                let statusIcon = '✅';
+                let statusMessage = data.diagnosis;
+                
+                if (!data.aiParserAvailable) {
+                    statusClass = 'error';
+                    statusIcon = '❌';
+                } else if (data.diagnosis.includes('⚠️')) {
+                    statusClass = 'warning';
+                    statusIcon = '⚠️';
+                }
+                
+                statusDiv.className = `status ${statusClass}`;
+                statusDiv.innerHTML = `${statusIcon} ${statusMessage}`;
+                
+                // Show details
+                detailsDiv.innerHTML = `
+                    <h2>Details</h2>
+                    <div class="detail-row">
+                        <span class="detail-label">AI Parser Available:</span>
+                        <span class="detail-value">${data.aiParserAvailable ? '✅ Yes' : '❌ No'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">USE_AI_PARSER Flag:</span>
+                        <span class="detail-value">${data.environmentVariables.USE_AI_PARSER ? '✅ Enabled' : '❌ Disabled'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">API Key:</span>
+                        <span class="detail-value">${data.environmentVariables.WATSONX_API_KEY}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Project ID:</span>
+                        <span class="detail-value">${data.environmentVariables.WATSONX_PROJECT_ID}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Service URL:</span>
+                        <span class="detail-value">${data.environmentVariables.WATSONX_URL}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Timestamp:</span>
+                        <span class="detail-value">${new Date(data.timestamp).toLocaleString()}</span>
+                    </div>
+                    
+                    <h3>Raw Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    
+                    ${!data.aiParserAvailable ? `
+                        <div class="status error" style="margin-top: 20px;">
+                            <strong>⚠️ Action Required:</strong><br>
+                            The AI parser is not available. Please:<br>
+                            1. Stop your server (Ctrl+C)<br>
+                            2. Run: <code>./restart-with-rebuild.sh</code><br>
+                            3. Check this page again
+                        </div>
+                    ` : ''}
+                `;
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Error: ${error.message}`;
+                
+                detailsDiv.innerHTML = `
+                    <div class="status error">
+                        <strong>Cannot connect to server!</strong><br><br>
+                        Make sure your server is running on port 3001.<br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Check status on page load
+        checkStatus();
+    </script>
+</body>
+</html>

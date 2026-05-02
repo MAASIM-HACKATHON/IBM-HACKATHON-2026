@@ -1,0 +1,43 @@
+{
+  "system_overview": "",
+  "architecture": {
+    "pipeline": [],
+    "components": []
+  },
+  "token_optimization_strategy": {
+    "preprocessing": [],
+    "chunking_strategy": "",
+    "context_reduction_methods": []
+  },
+  "ai_processing_layer": {
+    "model": "",
+    "prompt_strategy": "",
+    "output_constraints": ""
+  },
+  "data_flow": [
+    {
+      "step": "",
+      "input": "",
+      "output": ""
+    }
+  ],
+  "ats_integration": {
+    "mapping_strategy": "",
+    "scoring_compatibility": "",
+    "data_requirements": []
+  },
+  "edge_case_handling": {
+    "large_files": "",
+    "broken_text": "",
+    "missing_sections": "",
+    "multi_page_resumes": ""
+  },
+  "performance_optimization": {
+    "latency_reduction": [],
+    "cost_reduction": [],
+    "memory_efficiency": []
+  },
+  "security_considerations": [],
+  "mvp_constraints": [],
+  "implementation_notes": []
+}
