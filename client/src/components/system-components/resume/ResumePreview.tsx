@@ -1,15 +1,21 @@
-import { type ReactElement } from 'react';
+import { type ReactElement, useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import type { ParsedResumeData, ResumeGenerationResponse } from '../../../types/resume.types';
-import { formatResumeForDisplay } from '../../../services/resumeService';
-import { downloadResumeAsText, copyResumeToClipboard } from '../../../utilities/system-utils/pdfGenerator';
-import { downloadResumeAsPDF } from '../../../utilities/system-utils/pdfExporter';
+import PDFViewer from './PDFViewer';
+import {
+  generateResumePDFBlob,
+  createPDFBlobUrl,
+  revokePDFBlobUrl,
+  downloadPDFBlob,
+  fileToBlobUrl,
+} from '../../../services/pdfGenerationService';
 
 interface ResumePreviewProps {
   originalResume?: ParsedResumeData;
   generatedResume: ResumeGenerationResponse;
   viewMode: 'split' | 'original' | 'optimized';
   onViewModeChange: (mode: 'split' | 'original' | 'optimized') => void;
+  uploadedFile?: File; // Original uploaded PDF file
 }
 
 function ResumePreview({
@@ -17,8 +23,125 @@ function ResumePreview({
   generatedResume,
   viewMode,
   onViewModeChange,
+  uploadedFile,
 }: ResumePreviewProps): ReactElement {
-  const originalText = originalResume ? formatResumeForDisplay(originalResume) : '';
+  // PDF state management
+  const [originalPdfUrl, setOriginalPdfUrl] = useState<string | null>(null);
+  const [optimizedPdfUrl, setOptimizedPdfUrl] = useState<string | null>(null);
+  const [isGeneratingOriginal, setIsGeneratingOriginal] = useState(false);
+  const [isGeneratingOptimized, setIsGeneratingOptimized] = useState(false);
+  const [originalError, setOriginalError] = useState<string | null>(null);
+  const [optimizedError, setOptimizedError] = useState<string | null>(null);
+
+  // Generate original PDF
+  const generateOriginalPDF = useCallback(async () => {
+    if (!originalResume) return;
+
+    try {
+      setIsGeneratingOriginal(true);
+      setOriginalError(null);
+
+      // If we have the uploaded PDF file, use it directly
+      if (uploadedFile && uploadedFile.type === 'application/pdf') {
+        const url = fileToBlobUrl(uploadedFile);
+        setOriginalPdfUrl(url);
+        toast.success('Original PDF loaded');
+      } else {
+        // Generate PDF from parsed data
+        const blob = await generateResumePDFBlob(originalResume, 'original');
+        const url = createPDFBlobUrl(blob);
+        setOriginalPdfUrl(url);
+        toast.success('Original PDF generated');
+      }
+    } catch (error) {
+      console.error('Error generating original PDF:', error);
+      setOriginalError('Failed to generate original PDF');
+      toast.error('Failed to generate original PDF');
+    } finally {
+      setIsGeneratingOriginal(false);
+    }
+  }, [originalResume, uploadedFile]);
+
+  // Generate optimized PDF
+  const generateOptimizedPDF = useCallback(async () => {
+    if (!originalResume) return;
+
+    try {
+      setIsGeneratingOptimized(true);
+      setOptimizedError(null);
+
+      // Create a temporary ParsedResumeData with optimized content
+      const optimizedData: ParsedResumeData = {
+        ...originalResume,
+        rawText: generatedResume.generatedResume,
+      };
+
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      const url = createPDFBlobUrl(blob);
+      setOptimizedPdfUrl(url);
+      toast.success('Optimized PDF generated');
+    } catch (error) {
+      console.error('Error generating optimized PDF:', error);
+      setOptimizedError('Failed to generate optimized PDF');
+      toast.error('Failed to generate optimized PDF');
+    } finally {
+      setIsGeneratingOptimized(false);
+    }
+  }, [originalResume, generatedResume]);
+
+  // Generate PDFs on mount or data change
+  useEffect(() => {
+    if (originalResume && !originalPdfUrl && !isGeneratingOriginal) {
+      generateOriginalPDF();
+    }
+  }, [originalResume, originalPdfUrl, isGeneratingOriginal, generateOriginalPDF]);
+
+  useEffect(() => {
+    if (originalResume && generatedResume && !optimizedPdfUrl && !isGeneratingOptimized) {
+      generateOptimizedPDF();
+    }
+  }, [originalResume, generatedResume, optimizedPdfUrl, isGeneratingOptimized, generateOptimizedPDF]);
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (originalPdfUrl) {
+        revokePDFBlobUrl(originalPdfUrl);
+      }
+      if (optimizedPdfUrl) {
+        revokePDFBlobUrl(optimizedPdfUrl);
+      }
+    };
+  }, [originalPdfUrl, optimizedPdfUrl]);
+
+  // Download handlers
+  const handleDownloadOriginal = async () => {
+    if (!originalResume) return;
+
+    try {
+      const blob = await generateResumePDFBlob(originalResume, 'original');
+      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Original.pdf`;
+      downloadPDFBlob(blob, filename);
+    } catch (error) {
+      toast.error('Failed to download original PDF');
+    }
+  };
+
+  const handleDownloadOptimized = async () => {
+    if (!originalResume) return;
+
+    try {
+      const optimizedData: ParsedResumeData = {
+        ...originalResume,
+        rawText: generatedResume.generatedResume,
+      };
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_ATS_Optimized.pdf`;
+      downloadPDFBlob(blob, filename);
+    } catch (error) {
+      toast.error('Failed to download optimized PDF');
+    }
+  };
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/70 shadow-lg backdrop-blur">
@@ -33,7 +156,7 @@ function ResumePreview({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">Resume Preview</h2>
-              <p className="text-sm text-slate-400">Compare original and optimized versions</p>
+              <p className="text-sm text-slate-400">Professional PDF view with controls</p>
             </div>
           </div>
 
@@ -80,34 +203,86 @@ function ResumePreview({
         {/* Split View */}
         {viewMode === 'split' && (
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Original */}
+            {/* Original PDF */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Original</h3>
-                <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-400">
-                  Before
-                </span>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 max-h-[600px] overflow-y-auto">
-                <pre className="whitespace-pre-wrap text-xs text-slate-300 font-mono">
-                  {originalText || 'No original resume available'}
-                </pre>
-              </div>
+              {isGeneratingOriginal ? (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <div className="text-center">
+                    <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
+                    <p className="text-sm text-slate-400">Generating original PDF...</p>
+                  </div>
+                </div>
+              ) : originalError ? (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                  <div className="text-center">
+                    <p className="mb-2 text-sm text-red-300">{originalError}</p>
+                    <button
+                      onClick={generateOriginalPDF}
+                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                      type="button"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : originalPdfUrl ? (
+                <PDFViewer
+                  pdfUrl={originalPdfUrl}
+                  title="Original Resume"
+                  subtitle="Before optimization"
+                  badge={{ text: 'Before', color: 'blue' }}
+                  height="800px"
+                  onLoadError={(error) => {
+                    console.error('Original PDF load error:', error);
+                    setOriginalError(error.message);
+                  }}
+                />
+              ) : (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <p className="text-sm text-slate-400">No original resume available</p>
+                </div>
+              )}
             </div>
 
-            {/* Optimized */}
+            {/* Optimized PDF */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Optimized</h3>
-                <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-xs text-emerald-300">
-                  After
-                </span>
-              </div>
-              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4 max-h-[600px] overflow-y-auto">
-                <pre className="whitespace-pre-wrap text-xs text-emerald-100 font-mono">
-                  {generatedResume.generatedResume}
-                </pre>
-              </div>
+              {isGeneratingOptimized ? (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <div className="text-center">
+                    <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent"></div>
+                    <p className="text-sm text-slate-400">Generating optimized PDF...</p>
+                  </div>
+                </div>
+              ) : optimizedError ? (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                  <div className="text-center">
+                    <p className="mb-2 text-sm text-red-300">{optimizedError}</p>
+                    <button
+                      onClick={generateOptimizedPDF}
+                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                      type="button"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : optimizedPdfUrl ? (
+                <PDFViewer
+                  pdfUrl={optimizedPdfUrl}
+                  title="Optimized Resume"
+                  subtitle="ATS-optimized version"
+                  badge={{ text: 'After', color: 'emerald' }}
+                  height="800px"
+                  onLoadError={(error) => {
+                    console.error('Optimized PDF load error:', error);
+                    setOptimizedError(error.message);
+                  }}
+                />
+              ) : (
+                <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                  <p className="text-sm text-slate-400">No optimized resume available</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -115,34 +290,86 @@ function ResumePreview({
         {/* Original Only */}
         {viewMode === 'original' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Original Resume</h3>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-xs text-slate-400">
-                Before Optimization
-              </span>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-6 max-h-[700px] overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">
-                {originalText || 'No original resume available'}
-              </pre>
-            </div>
+            {isGeneratingOriginal ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
+                  <p className="text-sm text-slate-400">Generating original PDF...</p>
+                </div>
+              </div>
+            ) : originalError ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                <div className="text-center">
+                  <p className="mb-2 text-sm text-red-300">{originalError}</p>
+                  <button
+                    onClick={generateOriginalPDF}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : originalPdfUrl ? (
+              <PDFViewer
+                pdfUrl={originalPdfUrl}
+                title="Original Resume"
+                subtitle="Before optimization"
+                badge={{ text: 'Before Optimization', color: 'blue' }}
+                height="800px"
+                onLoadError={(error) => {
+                  console.error('Original PDF load error:', error);
+                  setOriginalError(error.message);
+                }}
+              />
+            ) : (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <p className="text-sm text-slate-400">No original resume available</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Optimized Only */}
         {viewMode === 'optimized' && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-white">Optimized Resume</h3>
-              <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-xs text-emerald-300">
-                ATS-Optimized
-              </span>
-            </div>
-            <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-6 max-h-[700px] overflow-y-auto">
-              <pre className="whitespace-pre-wrap text-sm text-emerald-100 font-mono">
-                {generatedResume.generatedResume}
-              </pre>
-            </div>
+            {isGeneratingOptimized ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent"></div>
+                  <p className="text-sm text-slate-400">Generating optimized PDF...</p>
+                </div>
+              </div>
+            ) : optimizedError ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                <div className="text-center">
+                  <p className="mb-2 text-sm text-red-300">{optimizedError}</p>
+                  <button
+                    onClick={generateOptimizedPDF}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : optimizedPdfUrl ? (
+              <PDFViewer
+                pdfUrl={optimizedPdfUrl}
+                title="Optimized Resume"
+                subtitle="ATS-optimized version"
+                badge={{ text: 'ATS-Optimized', color: 'emerald' }}
+                height="800px"
+                onLoadError={(error) => {
+                  console.error('Optimized PDF load error:', error);
+                  setOptimizedError(error.message);
+                }}
+              />
+            ) : (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <p className="text-sm text-slate-400">No optimized resume available</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -184,76 +411,38 @@ function ResumePreview({
         <div className="mt-6 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <button
-              onClick={async () => {
-                try {
-                  if (originalResume) {
-                    toast.loading('Generating PDF...', { id: 'pdf-gen' });
-                    await downloadResumeAsPDF(originalResume, 'full-cv');
-                    toast.success('📄 PDF ready! Use browser print dialog to save.', { id: 'pdf-gen', duration: 5000 });
-                  }
-                } catch (error) {
-                  toast.error('Failed to generate PDF. Please allow popups.', { id: 'pdf-gen' });
-                }
-              }}
-              className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20"
-              type="button"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Download as PDF
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                try {
-                  if (originalResume) {
-                    downloadResumeAsText(originalResume, 'full-cv');
-                    toast.success('📄 Text file downloaded!');
-                  }
-                } catch (error) {
-                  toast.error('Failed to download resume');
-                }
-              }}
-              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20"
+              onClick={handleDownloadOriginal}
+              disabled={!originalPdfUrl || isGeneratingOriginal}
+              className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
               type="button"
             >
               <span className="flex items-center justify-center gap-2">
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download as TXT
+                Download Original PDF
+              </span>
+            </button>
+
+            <button
+              onClick={handleDownloadOptimized}
+              disabled={!optimizedPdfUrl || isGeneratingOptimized}
+              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              type="button"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Download Optimized PDF
               </span>
             </button>
           </div>
 
-          <button
-            onClick={async () => {
-              try {
-                if (originalResume) {
-                  await copyResumeToClipboard(originalResume, 'full-cv');
-                  toast.success('📋 Resume copied to clipboard!');
-                }
-              } catch (error) {
-                toast.error('Failed to copy resume');
-              }
-            }}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition hover:bg-white/10"
-            type="button"
-          >
-            <span className="flex items-center justify-center gap-2">
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy to Clipboard
-            </span>
-          </button>
-
           <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">
             <p className="text-xs text-blue-200 leading-relaxed">
-              💡 <strong>Tip:</strong> PDF download opens a print dialog - select "Save as PDF" as your printer. The resume includes professional formatting, colors, and proper spacing optimized for ATS systems.
+              💡 <strong>Tip:</strong> Use the zoom and navigation controls in the PDF viewer for better readability. 
+              The PDFs are professionally formatted and optimized for ATS systems.
             </p>
           </div>
         </div>
@@ -263,3 +452,5 @@ function ResumePreview({
 }
 
 export default ResumePreview;
+
+// Made with Bob
