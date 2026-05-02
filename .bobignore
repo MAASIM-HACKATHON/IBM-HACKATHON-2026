@@ -24,8 +24,8 @@ dist/
 
 # Allow BOB working plans
 !01-documentations/
-!01-documentations/integration-plan/
-!01-documentations/integration-plan/**
+!01-documentations/ats-ai-integration-plan/
+!01-documentations/ats-ai-integration-plan/**
 
 # =========================
 # KEEP IMPORTANT FILES
