@@ -409,6 +409,8 @@ function PDFViewer({
               <Page
                 pageNumber={currentPage}
                 scale={scale}
+                renderTextLayer={true}
+                renderAnnotationLayer={true}
                 loading={
                   <div className="flex items-center justify-center p-8">
                     <div className="h-6 w-6 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>

@@ -231,7 +231,7 @@ function ResumePreview({
                   title="Original Resume"
                   subtitle="Before optimization"
                   badge={{ text: 'Before', color: 'blue' }}
-                  height="700px"
+                  height="800px"
                   onLoadError={(error) => {
                     console.error('Original PDF load error:', error);
                     setOriginalError(error.message);
@@ -272,7 +272,7 @@ function ResumePreview({
                   title="Optimized Resume"
                   subtitle="ATS-optimized version"
                   badge={{ text: 'After', color: 'emerald' }}
-                  height="700px"
+                  height="800px"
                   onLoadError={(error) => {
                     console.error('Optimized PDF load error:', error);
                     setOptimizedError(error.message);

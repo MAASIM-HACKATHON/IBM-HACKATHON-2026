@@ -32,14 +32,14 @@ export interface PDFMetadata {
 
 // Default options
 const DEFAULT_OPTIONS: Required<PDFGenerationOptions> = {
-  fontSize: 11,
+  fontSize: 10,
   fontFamily: 'helvetica',
-  lineHeight: 1.5,
+  lineHeight: 1.4,
   margins: {
-    top: 40,
-    right: 40,
-    bottom: 40,
-    left: 40,
+    top: 50,
+    right: 50,
+    bottom: 50,
+    left: 50,
   },
   pageSize: 'A4',
   orientation: 'portrait',
@@ -144,67 +144,60 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
   const { parsedSections } = data;
   let content = '';
   
-  // Header - Personal Info
+  // Header - Personal Info (ATS-friendly, clean format)
   if (parsedSections.personalInfo) {
     const info = parsedSections.personalInfo;
-    content += `${info.name || 'YOUR NAME'}\n`;
-    content += '═'.repeat(80) + '\n\n';
+    content += `${(info.name || 'YOUR NAME').toUpperCase()}\n\n`;
     
-    if (info.email) content += `Email: ${info.email}\n`;
-    if (info.phone) content += `Phone: ${info.phone}\n`;
-    if (info.location) content += `Location: ${info.location}\n`;
+    const contactInfo = [];
+    if (info.email) contactInfo.push(info.email);
+    if (info.phone) contactInfo.push(info.phone);
+    if (info.location) contactInfo.push(info.location);
+    if (contactInfo.length > 0) {
+      content += contactInfo.join(' | ') + '\n';
+    }
+    
     if (info.linkedin) content += `LinkedIn: ${info.linkedin}\n`;
     if (info.github) content += `GitHub: ${info.github}\n`;
-    content += '\n';
+    content += '\n\n';
   }
   
   // Professional Summary
   if (parsedSections.summary) {
-    content += '═'.repeat(80) + '\n';
     content += 'PROFESSIONAL SUMMARY\n';
-    content += '═'.repeat(80) + '\n\n';
-    content += `${parsedSections.summary}\n\n`;
+    content += '_'.repeat(70) + '\n\n';
+    content += `${parsedSections.summary}\n\n\n`;
   }
   
-  // Technical Skills
+  // Technical Skills (ATS-friendly format)
   if (parsedSections.skills.length > 0) {
-    content += '═'.repeat(80) + '\n';
     content += 'TECHNICAL SKILLS\n';
-    content += '═'.repeat(80) + '\n\n';
-    
-    // Group skills in rows
-    const skillsPerRow = 5;
-    for (let i = 0; i < parsedSections.skills.length; i += skillsPerRow) {
-      const skillGroup = parsedSections.skills.slice(i, i + skillsPerRow);
-      content += skillGroup.join(' • ') + '\n';
-    }
-    content += '\n';
+    content += '_'.repeat(70) + '\n\n';
+    content += parsedSections.skills.join(' | ') + '\n\n\n';
   }
   
   // Professional Experience
   if (parsedSections.workExperience.length > 0) {
-    content += '═'.repeat(80) + '\n';
     content += 'PROFESSIONAL EXPERIENCE\n';
-    content += '═'.repeat(80) + '\n\n';
+    content += '_'.repeat(70) + '\n\n';
     
     parsedSections.workExperience.forEach((exp, index) => {
       content += `${exp.title}\n`;
-      content += `${exp.company} | ${exp.duration}\n`;
-      content += '─'.repeat(80) + '\n';
+      content += `${exp.company} | ${exp.duration}\n\n`;
       
       if (exp.description) {
         content += `${exp.description}\n\n`;
       }
       
       if (exp.achievements && exp.achievements.length > 0) {
-        content += 'Key Achievements:\n';
         exp.achievements.forEach(achievement => {
-          content += `  • ${achievement}\n`;
+          content += `• ${achievement}\n`;
         });
+        content += '\n';
       }
       
       if (exp.skills && exp.skills.length > 0) {
-        content += `\nTechnologies Used: ${exp.skills.join(', ')}\n`;
+        content += `Technologies: ${exp.skills.join(', ')}\n`;
       }
       
       if (index < parsedSections.workExperience.length - 1) {
@@ -216,17 +209,15 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
   
   // Projects
   if (parsedSections.projects.length > 0) {
-    content += '═'.repeat(80) + '\n';
     content += 'PROJECTS\n';
-    content += '═'.repeat(80) + '\n\n';
+    content += '_'.repeat(70) + '\n\n';
     
     parsedSections.projects.forEach((project, index) => {
       content += `${project.name}\n`;
-      content += '─'.repeat(80) + '\n';
       content += `${project.description}\n`;
       
       if (project.technologies && project.technologies.length > 0) {
-        content += `\nTechnologies: ${project.technologies.join(', ')}\n`;
+        content += `Technologies: ${project.technologies.join(', ')}\n`;
       }
       
       if (index < parsedSections.projects.length - 1) {
@@ -238,9 +229,8 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
   
   // Education
   if (parsedSections.education.length > 0) {
-    content += '═'.repeat(80) + '\n';
     content += 'EDUCATION\n';
-    content += '═'.repeat(80) + '\n\n';
+    content += '_'.repeat(70) + '\n\n';
     
     parsedSections.education.forEach(edu => {
       content += `${edu.degree}${edu.field ? ` in ${edu.field}` : ''}\n`;

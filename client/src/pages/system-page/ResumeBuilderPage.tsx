@@ -229,9 +229,9 @@ function ResumeBuilderPage(): ReactElement {
         </section>
 
 
-        {/* Main Content Grid */}
-        <section className="grid gap-6 lg:grid-cols-2">
-          {/* Left Column - Input Sections */}
+        {/* Main Content - Full Width Layout */}
+        <section className="space-y-6">
+          {/* Input Section */}
           <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8 lg:p-10">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
@@ -292,52 +292,54 @@ function ResumeBuilderPage(): ReactElement {
             </div>
           </div>
 
-          {/* Right Column - Results */}
-          <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8">
-            <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Output layer</p>
-            <h2 className="mt-3 text-2xl font-semibold text-white">Results & Analysis</h2>
+          {/* Resume Preview Section - Full Width */}
+          {resumeBuilder.generatedResume && (
+            <ResumePreview
+              originalResume={resumeBuilder.parsedData}
+              generatedResume={resumeBuilder.generatedResume}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              uploadedFile={resumeBuilder.uploadedFile?.file}
+            />
+          )}
 
-            <div className="mt-8 space-y-6">
-              {/* ATS Score Card */}
-              {resumeBuilder.atsScore && (
-                <ATSScoreCard
-                  atsScore={resumeBuilder.atsScore}
-                  jobAnalysis={resumeBuilder.jobAnalysis}
-                />
-              )}
+          {/* Results & Analysis Section - Below PDF Viewer */}
+          {(resumeBuilder.atsScore || (!resumeBuilder.parsedData && !resumeBuilder.loading && !resumeBuilder.generatedResume)) && (
+            <div className="rounded-[28px] border border-white/10 bg-slate-950/70 p-6 shadow-[0_20px_70px_rgba(3,8,20,0.45)] backdrop-blur sm:p-8">
+              <p className="text-xs uppercase tracking-[0.25em] text-purple-200">Output layer</p>
+              <h2 className="mt-3 text-2xl font-semibold text-white">Results & Analysis</h2>
 
-              {/* Resume Preview */}
-              {resumeBuilder.generatedResume && (
-                <ResumePreview
-                  originalResume={resumeBuilder.parsedData}
-                  generatedResume={resumeBuilder.generatedResume}
-                  viewMode={viewMode}
-                  onViewModeChange={setViewMode}
-                  uploadedFile={resumeBuilder.uploadedFile?.file}
-                />
-              )}
+              <div className="mt-8 space-y-6">
+                {/* ATS Score Card */}
+                {resumeBuilder.atsScore && (
+                  <ATSScoreCard
+                    atsScore={resumeBuilder.atsScore}
+                    jobAnalysis={resumeBuilder.jobAnalysis}
+                  />
+                )}
 
-              {/* Welcome State */}
-              {!resumeBuilder.parsedData && !resumeBuilder.loading && !resumeBuilder.atsScore && !resumeBuilder.generatedResume && (
-                <div className="space-y-4 rounded-[24px] border border-dashed border-white/15 bg-white/3 p-8 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-400/10">
-                    <svg className="h-8 w-8 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                {/* Welcome State */}
+                {!resumeBuilder.parsedData && !resumeBuilder.loading && !resumeBuilder.atsScore && !resumeBuilder.generatedResume && (
+                  <div className="space-y-4 rounded-[24px] border border-dashed border-white/15 bg-white/3 p-8 text-center">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-400/10">
+                      <svg className="h-8 w-8 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-base font-medium text-white">
+                        Ready to optimize your resume
+                      </p>
+                      <p className="text-sm leading-7 text-slate-300">
+                        Upload your resume to begin. Add a job description for targeted optimization
+                        and ATS scoring. Results will appear here.
+                      </p>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-base font-medium text-white">
-                      Ready to optimize your resume
-                    </p>
-                    <p className="text-sm leading-7 text-slate-300">
-                      Upload your resume to begin. Add a job description for targeted optimization 
-                      and ATS scoring. Results will appear here.
-                    </p>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </div>
 
