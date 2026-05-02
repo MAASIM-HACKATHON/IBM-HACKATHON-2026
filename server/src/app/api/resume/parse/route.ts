@@ -374,7 +374,18 @@ export async function POST(request: NextRequest) {
     console.log(`[${new Date().toISOString()}] ✅ SERVER: Resume Parse Completed Successfully`);
     console.log(`${'='.repeat(80)}\n`);
 
-    return NextResponse.json(parsedData, { headers: corsHeaders });
+    // Add metadata about which parser was used
+    const responseData = {
+      ...parsedData,
+      _debug: {
+        parserUsed: parsedData.metadata?.parsingMethod || 'unknown',
+        aiParserAvailable: aiParser.isAvailable(),
+        useAiParserFlag: USE_AI_PARSER,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    return NextResponse.json(responseData, { headers: corsHeaders });
   } catch (error) {
     const errorTimestamp = new Date().toISOString();
     console.error(`\n${'='.repeat(80)}`);
