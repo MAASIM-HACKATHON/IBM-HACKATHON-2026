@@ -1,5 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Cache pdf-parse import to avoid repeated dynamic imports (performance optimization)
+// @ts-ignore - pdf-parse doesn't have TypeScript definitions
+let pdfParseCache: any = null;
+async function getPdfParse() {
+  if (!pdfParseCache) {
+    // @ts-ignore - pdf-parse doesn't have TypeScript definitions
+    pdfParseCache = (await import('pdf-parse')).default;
+  }
+  return pdfParseCache;
+}
+
+// Performance tracking
+interface PerformanceMetrics {
+  extractionTime: number;
+  parsingTime: number;
+  totalTime: number;
+}
+
+// Environment-based logging (reduce verbosity in production)
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const log = {
+  info: (...args: any[]) => isDevelopment && console.log(...args),
+  error: (...args: any[]) => console.error(...args),
+  debug: (...args: any[]) => isDevelopment && console.log(...args),
+};
+
 interface ParsedResumeData {
   rawText: string;
   parsedSections: {
@@ -219,43 +245,94 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
     return text;
   }
 
-  // For PDF files - extract text using pdf-parse library
+  // For PDF files - extract text using pdf-parse library (v1.x)
   if (mimeType === 'application/pdf') {
-    console.log('✓ Detected as PDF - using pdf-parse library');
+    console.log('✓ Detected as PDF - using pdf-parse v1.x library');
     try {
+      // Optimize: Create Uint8Array view without copying data
       const uint8Array = new Uint8Array(buffer);
-      console.log('✓ Created Uint8Array, length:', uint8Array.length);
       
-      console.log('✓ Parsing PDF with pdf-parse...');
-      // Dynamic import for CommonJS module with ESM/CJS interop
-      const pdfParseModule = await import('pdf-parse');
-      // Handle both ESM and CJS module formats
-      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
-      const data = await pdfParse(uint8Array);
+      // Fast PDF signature validation (only check first 4 bytes)
+      if (uint8Array[0] !== 0x25 || uint8Array[1] !== 0x50 ||
+          uint8Array[2] !== 0x44 || uint8Array[3] !== 0x46) {
+        throw new Error('Invalid PDF file: Missing PDF signature');
+      }
+      console.log('✓ PDF signature validated');
+      
+      console.log('✓ Parsing PDF with pdf-parse v1.x...');
+      
+      // OPTIMIZED: Convert ArrayBuffer to Node.js Buffer efficiently
+      // Buffer.from() with ArrayBuffer creates a view, not a copy (memory efficient)
+      const nodeBuffer = Buffer.from(buffer);
+      console.log('✓ Buffer ready, size:', nodeBuffer.length, 'bytes');
+      
+      // Use cached pdf-parse import for better performance
+      const pdfParse = await getPdfParse();
+      
+      // Parse PDF - v1.x accepts Buffer directly and returns a promise
+      const parseStartTime = Date.now();
+      const result = await pdfParse(nodeBuffer);
+      const parseEndTime = Date.now();
+      
+      console.log(`✓ PDF parsing completed in ${parseEndTime - parseStartTime}ms`);
       
       console.log('✓ PDF parsed successfully');
-      console.log('  - Pages:', data.numpages);
-      console.log('  - Text length:', data.text.length, 'characters');
-      console.log('  - Info:', data.info);
+      console.log('  - Total pages:', result.numpages);
+      console.log('  - Text length:', result.text.length, 'characters');
+      console.log('  - Raw text preview (first 500 chars):', result.text.substring(0, 500));
       
-      if (!data.text || data.text.trim().length === 0) {
-        console.error('⚠️ PDF parsed but no text extracted');
-        return 'Unable to extract text from PDF. The PDF may be image-based or encrypted. Please try uploading as TXT format.';
+      // OPTIMIZED VALIDATION: Ensure extracted text is valid and meaningful
+      const extractedText = result.text?.trim() || '';
+      const textLength = extractedText.length;
+      const minValidTextLength = 100; // Minimum characters for a valid resume
+      
+      // Fast validation checks
+      if (textLength === 0) {
+        log.error('❌ VALIDATION FAILED: PDF parsed but no text extracted');
+        throw new Error('PDF contains no extractable text. The PDF may be image-based or scanned.');
       }
       
-      console.log('✅ PDF extraction complete, text length:', data.text.length);
-      console.log('Text preview (first 500 chars):', data.text.substring(0, 500));
-      return data.text;
+      if (textLength < minValidTextLength) {
+        log.error(`❌ VALIDATION FAILED: Extracted text too short (${textLength} chars, minimum ${minValidTextLength})`);
+        log.debug('Extracted content:', extractedText);
+        throw new Error(`PDF text extraction incomplete. Only ${textLength} characters extracted.`);
+      }
+      
+      // Optimized: Single toLowerCase() call and early exit
+      const lowerText = extractedText.toLowerCase();
+      const errorIndicators = ['error parsing', 'corrupted', 'password-protected'];
+      for (const indicator of errorIndicators) {
+        if (lowerText.includes(indicator)) {
+          log.error('❌ VALIDATION FAILED: Extracted text appears to be an error message');
+          log.debug('Suspicious content:', extractedText.substring(0, 200));
+          throw new Error('PDF text extraction returned invalid content');
+        }
+      }
+      
+      log.info('✅ PDF extraction complete and validated');
+      log.debug(`   - Extracted ${textLength} characters`);
+      log.debug(`   - Contains ${extractedText.split(/\s+/).length} words`);
+      log.debug(`   - Contains ${extractedText.split(/\n/).length} lines`);
+      
+      return extractedText;
     } catch (error) {
       console.error('❌ PDF parsing error:', error);
       console.error('Error details:', error instanceof Error ? error.message : String(error));
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      return 'Error parsing PDF file. The PDF may be corrupted or password-protected. Please try uploading as TXT format.';
+      
+      // CRITICAL: Throw error instead of returning error message string
+      // This ensures the error is properly handled and not treated as valid resume text
+      throw new Error(
+        error instanceof Error 
+          ? `PDF parsing failed: ${error.message}` 
+          : 'PDF parsing failed: Unknown error'
+      );
     }
   }
 
   // For DOCX files - extract text from XML
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    console.log('✓ Detected as DOCX - using XML extraction');
     try {
       const uint8Array = new Uint8Array(buffer);
       const decoder = new TextDecoder('utf-8', { fatal: false });
@@ -270,19 +347,73 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
         }).join(' ');
       }
       
-      return text.trim() || 'Unable to extract text from DOCX. Please try uploading as TXT format.';
+      const extractedText = text.trim();
+      const minValidTextLength = 100;
+      
+      if (extractedText.length === 0) {
+        console.error('❌ DOCX parsed but no text extracted');
+        throw new Error('DOCX contains no extractable text');
+      }
+      
+      if (extractedText.length < minValidTextLength) {
+        console.error(`❌ DOCX text too short (${extractedText.length} chars)`);
+        throw new Error(`DOCX text extraction incomplete. Only ${extractedText.length} characters extracted.`);
+      }
+      
+      console.log('✅ DOCX extraction complete and validated');
+      console.log(`   - Extracted ${extractedText.length} characters`);
+      return extractedText;
     } catch (error) {
-      console.error('DOCX parsing error:', error);
-      return 'Error parsing DOCX file. Please try uploading as TXT format.';
+      console.error('❌ DOCX parsing error:', error);
+      throw new Error(
+        error instanceof Error 
+          ? `DOCX parsing failed: ${error.message}` 
+          : 'DOCX parsing failed: Unknown error'
+      );
     }
   }
 
-  return 'Unsupported file format. Please upload TXT, PDF, or DOCX file.';
+  throw new Error('Unsupported file format. Please upload TXT, PDF, or DOCX file.');
 }
 
 function parseResumeText(text: string): ParsedResumeData {
   console.log(`\n[${new Date().toISOString()}] 📝 parseResumeText: Starting resume parsing`);
   console.log('Input text length:', text.length, 'characters');
+  
+  // CRITICAL VALIDATION: Ensure input text is valid resume content
+  const minValidTextLength = 100;
+  const trimmedText = text.trim();
+  
+  if (trimmedText.length === 0) {
+    console.error('❌ VALIDATION FAILED: Empty text provided to parser');
+    throw new Error('Cannot parse empty resume text');
+  }
+  
+  if (trimmedText.length < minValidTextLength) {
+    console.error(`❌ VALIDATION FAILED: Text too short (${trimmedText.length} chars, minimum ${minValidTextLength})`);
+    throw new Error(`Resume text too short for parsing: ${trimmedText.length} characters`);
+  }
+  
+  // Check if text looks like an error message (defensive check)
+  const errorIndicators = [
+    'error parsing',
+    'unable to extract',
+    'corrupted',
+    'password-protected',
+    'unsupported file format',
+    'please try uploading'
+  ];
+  
+  const lowerText = trimmedText.toLowerCase();
+  for (const indicator of errorIndicators) {
+    if (lowerText.includes(indicator)) {
+      console.error('❌ VALIDATION FAILED: Input appears to be an error message, not resume content');
+      console.error('Suspicious content:', trimmedText.substring(0, 200));
+      throw new Error('Invalid resume content: appears to be an error message');
+    }
+  }
+  
+  console.log('✅ Input validation passed');
   
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   console.log('✓ Split into', lines.length, 'non-empty lines');

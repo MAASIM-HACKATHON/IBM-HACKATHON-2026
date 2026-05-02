@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pdf-parse workaround test files
+/test/data/*.pdf
+!test/README.md

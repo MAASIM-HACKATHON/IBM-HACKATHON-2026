@@ -8,6 +8,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try {
     const resolvedParams = await params;
     const emailId = parseInt(resolvedParams.id);
     const { searchParams } = new URL(request.url);

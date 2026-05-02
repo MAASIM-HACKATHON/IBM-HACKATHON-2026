@@ -4,6 +4,8 @@
  */
 
 import { FilteredATSContext } from '@/lib/ats-engine';
+import { WatsonXAI } from '@ibm-cloud/watsonx-ai';
+import { IamAuthenticator } from 'ibm-cloud-sdk-core';
 
 // ============================================================================
 // Types & Interfaces
@@ -128,31 +130,24 @@ async function generateWithWatsonx(context: EmailPromptContext): Promise<string>
   const prompt = buildPrompt(context);
   
   try {
-    // TODO: Replace with actual Watsonx SDK call
-    // Example (pseudo-code):
-    // const watsonxClient = new WatsonXAI({
-    //   version: '2023-05-29',
-    //   serviceUrl: watsonxConfig.serviceUrl,
-    //   authenticator: new IamAuthenticator({
-    //     apikey: watsonxConfig.apiKey
-    //   })
-    // });
-    //
-    // const response = await watsonxClient.generateText({
-    //   model_id: watsonxConfig.model,
-    //   project_id: watsonxConfig.projectId,
-    //   input: prompt,
-    //   parameters: watsonxConfig.parameters
-    // });
-    //
-    // return response.results[0].generated_text;
+    // Initialize Watsonx client
+    const watsonxClient = new WatsonXAI({
+      version: '2023-05-29',
+      serviceUrl: watsonxConfig.serviceUrl,
+      authenticator: new IamAuthenticator({
+        apikey: watsonxConfig.apiKey
+      })
+    });
 
-    // For MVP: Simulate API call with timeout
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Throw error to trigger fallback (until real implementation)
-    throw new Error('Watsonx integration pending - using template fallback');
-    
+    const response = await watsonxClient.generateText({
+      modelId: watsonxConfig.model,
+      projectId: watsonxConfig.projectId,
+      input: prompt,
+      parameters: watsonxConfig.parameters
+    });
+
+    return (response.result as any).generated_text || '';
+
   } catch (error) {
     console.error('Watsonx API error:', error);
     throw error;
