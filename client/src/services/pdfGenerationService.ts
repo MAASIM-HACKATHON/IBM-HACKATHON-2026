@@ -1,10 +1,115 @@
 /**
  * PDF Generation Service
  * Handles PDF blob creation, management, and conversion for resume display
+ * Includes automatic validation and sanitization for robust PDF generation
  */
 
 import { jsPDF } from 'jspdf';
 import type { ParsedResumeData } from '../types/resume.types';
+
+/**
+ * Sanitize and validate data before PDF generation
+ */
+function sanitizeResumeData(data: ParsedResumeData): ParsedResumeData {
+  const sanitized = { ...data };
+  
+  // Ensure parsedSections exists
+  if (!sanitized.parsedSections) {
+    sanitized.parsedSections = {
+      personalInfo: undefined,
+      summary: '',
+      skills: [],
+      workExperience: [],
+      education: [],
+      projects: [],
+      certifications: [],
+    };
+  }
+  
+  // Sanitize arrays - ensure they exist and contain valid data
+  const sections = sanitized.parsedSections;
+  
+  sections.skills = Array.isArray(sections.skills)
+    ? sections.skills.filter(s => s && typeof s === 'string').map(s => s.trim())
+    : [];
+  
+  sections.workExperience = Array.isArray(sections.workExperience)
+    ? sections.workExperience.filter(exp => exp && typeof exp === 'object')
+    : [];
+  
+  sections.education = Array.isArray(sections.education)
+    ? sections.education.filter(edu => edu && typeof edu === 'object')
+    : [];
+  
+  sections.projects = Array.isArray(sections.projects)
+    ? sections.projects.filter(proj => proj && typeof proj === 'object')
+    : [];
+  
+  sections.certifications = Array.isArray(sections.certifications)
+    ? sections.certifications.map(cert => sanitizeCertification(cert)).filter((c): c is string => c !== null)
+    : [];
+  
+  return sanitized;
+}
+
+/**
+ * Sanitize certification data - handle objects, strings, and invalid data
+ */
+function sanitizeCertification(cert: any): string | null {
+  if (!cert) return null;
+  
+  // If it's already a string, return it
+  if (typeof cert === 'string') {
+    return cert.trim();
+  }
+  
+  // If it's an object, try to extract meaningful text
+  if (typeof cert === 'object') {
+    // Try common property names
+    const possibleNames = ['name', 'title', 'certification', 'certificationName', 'description'];
+    
+    for (const prop of possibleNames) {
+      if (cert[prop] && typeof cert[prop] === 'string') {
+        return cert[prop].trim();
+      }
+    }
+    
+    // If no known property, try to create a readable string
+    if (cert.name || cert.issuer || cert.date) {
+      const parts = [];
+      if (cert.name) parts.push(cert.name);
+      if (cert.issuer) parts.push(`(${cert.issuer})`);
+      if (cert.date) parts.push(`- ${cert.date}`);
+      return parts.join(' ');
+    }
+  }
+  
+  // Last resort: return null to filter out
+  return null;
+}
+
+/**
+ * Sanitize text content - remove problematic characters
+ */
+function sanitizeText(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  
+  return text
+    // Remove null bytes and other control characters
+    .replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '')
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    // Remove leading/trailing whitespace
+    .trim();
+}
+
+/**
+ * Validate and sanitize array data
+ */
+function sanitizeArray<T>(arr: any, validator: (item: any) => T | null): T[] {
+  if (!Array.isArray(arr)) return [];
+  return arr.map(validator).filter((item): item is T => item !== null);
+}
 
 // PDF Generation Options
 export interface PDFGenerationOptions {
@@ -56,8 +161,11 @@ export async function generateResumePDFBlob(
   try {
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
     
+    // Sanitize data first to prevent formatting issues
+    const sanitizedData = sanitizeResumeData(data);
+    
     // Format resume content
-    const content = formatResumeContent(data, type);
+    const content = formatResumeContent(sanitizedData, type);
     
     // Create metadata
     const metadata: PDFMetadata = {
@@ -161,30 +269,32 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
   const { parsedSections } = data;
   let content = '';
   
-  // Header - Personal Info (ATS-friendly, clean format)
-  if (parsedSections.personalInfo) {
-    const info = parsedSections.personalInfo;
-    content += `${(info.name || 'YOUR NAME').toUpperCase()}\n\n`;
-    
-    const contactInfo = [];
-    if (info.email) contactInfo.push(info.email);
-    if (info.phone) contactInfo.push(info.phone);
-    if (info.location) contactInfo.push(info.location);
-    if (contactInfo.length > 0) {
-      content += contactInfo.join(' | ') + '\n';
+  try {
+    // Header - Personal Info (ATS-friendly, clean format)
+    if (parsedSections.personalInfo) {
+      const info = parsedSections.personalInfo;
+      const name = sanitizeText(info.name || 'YOUR NAME');
+      content += `${name.toUpperCase()}\n\n`;
+      
+      const contactInfo = [];
+      if (info.email) contactInfo.push(sanitizeText(info.email));
+      if (info.phone) contactInfo.push(sanitizeText(info.phone));
+      if (info.location) contactInfo.push(sanitizeText(info.location));
+      if (contactInfo.length > 0) {
+        content += contactInfo.join(' | ') + '\n';
+      }
+      
+      if (info.linkedin) content += `LinkedIn: ${sanitizeText(info.linkedin)}\n`;
+      if (info.github) content += `GitHub: ${sanitizeText(info.github)}\n`;
+      content += '\n\n';
     }
     
-    if (info.linkedin) content += `LinkedIn: ${info.linkedin}\n`;
-    if (info.github) content += `GitHub: ${info.github}\n`;
-    content += '\n\n';
-  }
-  
-  // Professional Summary
-  if (parsedSections.summary) {
-    content += 'PROFESSIONAL SUMMARY\n';
-    content += '_'.repeat(70) + '\n\n';
-    content += `${parsedSections.summary}\n\n\n`;
-  }
+    // Professional Summary
+    if (parsedSections.summary) {
+      content += 'PROFESSIONAL SUMMARY\n';
+      content += '_'.repeat(70) + '\n\n';
+      content += `${sanitizeText(parsedSections.summary)}\n\n\n`;
+    }
   
   // Technical Skills (ATS-friendly format)
   if (parsedSections.skills.length > 0) {
@@ -199,22 +309,27 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
     content += '_'.repeat(70) + '\n\n';
     
     parsedSections.workExperience.forEach((exp, index) => {
-      content += `${exp.title}\n`;
-      content += `${exp.company} | ${exp.duration}\n\n`;
+      content += `${sanitizeText(exp.title || 'Position')}\n`;
+      content += `${sanitizeText(exp.company || 'Company')} | ${sanitizeText(exp.duration || 'Duration')}\n\n`;
       
       if (exp.description) {
-        content += `${exp.description}\n\n`;
+        content += `${sanitizeText(exp.description)}\n\n`;
       }
       
-      if (exp.achievements && exp.achievements.length > 0) {
+      if (exp.achievements && Array.isArray(exp.achievements) && exp.achievements.length > 0) {
         exp.achievements.forEach(achievement => {
-          content += `• ${achievement}\n`;
+          if (achievement) {
+            content += `• ${sanitizeText(achievement)}\n`;
+          }
         });
         content += '\n';
       }
       
-      if (exp.skills && exp.skills.length > 0) {
-        content += `Technologies: ${exp.skills.join(', ')}\n`;
+      if (exp.skills && Array.isArray(exp.skills) && exp.skills.length > 0) {
+        const sanitizedSkills = exp.skills.filter(s => s).map(s => sanitizeText(s));
+        if (sanitizedSkills.length > 0) {
+          content += `Technologies: ${sanitizedSkills.join(', ')}\n`;
+        }
       }
       
       if (index < parsedSections.workExperience.length - 1) {
@@ -230,11 +345,14 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
     content += '_'.repeat(70) + '\n\n';
     
     parsedSections.projects.forEach((project, index) => {
-      content += `${project.name}\n`;
-      content += `${project.description}\n`;
+      content += `${sanitizeText(project.name || 'Project')}\n`;
+      content += `${sanitizeText(project.description || '')}\n`;
       
-      if (project.technologies && project.technologies.length > 0) {
-        content += `Technologies: ${project.technologies.join(', ')}\n`;
+      if (project.technologies && Array.isArray(project.technologies) && project.technologies.length > 0) {
+        const sanitizedTech = project.technologies.filter(t => t).map(t => sanitizeText(t));
+        if (sanitizedTech.length > 0) {
+          content += `Technologies: ${sanitizedTech.join(', ')}\n`;
+        }
       }
       
       if (index < parsedSections.projects.length - 1) {
@@ -250,9 +368,15 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
     content += '_'.repeat(70) + '\n\n';
     
     parsedSections.education.forEach(edu => {
-      content += `${edu.degree}${edu.field ? ` in ${edu.field}` : ''}\n`;
-      content += `${edu.institution}${edu.year ? ` | ${edu.year}` : ''}\n`;
-      if (edu.gpa) content += `GPA: ${edu.gpa}\n`;
+      const degree = sanitizeText(edu.degree || 'Degree');
+      const field = edu.field ? ` in ${sanitizeText(edu.field)}` : '';
+      content += `${degree}${field}\n`;
+      
+      const institution = sanitizeText(edu.institution || 'Institution');
+      const year = edu.year ? ` | ${sanitizeText(edu.year)}` : '';
+      content += `${institution}${year}\n`;
+      
+      if (edu.gpa) content += `GPA: ${sanitizeText(edu.gpa)}\n`;
       content += '\n';
     });
   }
@@ -263,19 +387,24 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
     content += '_'.repeat(70) + '\n\n';
     
     parsedSections.certifications.forEach(cert => {
-      // Handle both string and object certifications
-      const certText = typeof cert === 'string' ? cert :
-                      (cert as any).name || (cert as any).title || JSON.stringify(cert);
-      content += `• ${certText}\n`;
+      // Certifications are already sanitized by sanitizeResumeData
+      if (cert && typeof cert === 'string') {
+        content += `• ${sanitizeText(cert)}\n`;
+      }
     });
     content += '\n';
   }
   
-  // Footer
-  content += '\n' + '_'.repeat(70) + '\n';
-  content += `Generated on ${new Date().toLocaleDateString()} by IBM Watsonx AI Resume Builder\n`;
-  
-  return content;
+    // Footer
+    content += '\n' + '_'.repeat(70) + '\n';
+    content += `Generated on ${new Date().toLocaleDateString()} by IBM Watsonx AI Resume Builder\n`;
+    
+    return content;
+  } catch (error) {
+    console.error('Error formatting resume content:', error);
+    // Return a safe fallback
+    return 'Error generating resume content. Please try again.';
+  }
 }
 
 /**
