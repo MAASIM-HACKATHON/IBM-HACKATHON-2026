@@ -19,7 +19,13 @@ dist/
 # =========================
 # DOCUMENTATION (IGNORE TO SAVE BOBCOINS)
 # =========================
-01-documentations/
+# Ignore all documentation by default
+01-documentations/**
+
+# Allow BOB working plans
+!01-documentations/
+!01-documentations/integration-plan/
+!01-documentations/integration-plan/**
 
 # =========================
 # KEEP IMPORTANT FILES
