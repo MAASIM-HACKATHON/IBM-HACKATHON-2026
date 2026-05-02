@@ -2,12 +2,48 @@ import { NextRequest, NextResponse } from 'next/server';
 import ATSEngine from '@/lib/ats-engine';
 import type { ATSAnalysisRequest, ATSAnalysisResponse } from '@/types/ats.types';
 
+// CORS headers helper
+function getCorsHeaders(origin: string | null) {
+  const headers: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+
+  const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ];
+
+  if (origin && allowedOrigins.includes(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
+  }
+
+  return headers;
+}
+
+/**
+ * OPTIONS /api/ats/analyze
+ * 
+ * Handles preflight requests
+ */
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  return new NextResponse(null, {
+    status: 200,
+    headers: getCorsHeaders(origin),
+  });
+}
+
 /**
  * POST /api/ats/analyze
  * 
  * Analyzes a candidate resume against job roles using the ATS engine
  */
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   try {
     const startTime = Date.now();
     
@@ -18,14 +54,14 @@ export async function POST(request: NextRequest) {
     if (!body.resume) {
       return NextResponse.json(
         { error: 'Resume data is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
     
     if (!body.jobs || !Array.isArray(body.jobs) || body.jobs.length === 0) {
       return NextResponse.json(
         { error: 'At least one job role is required' },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
     
@@ -42,7 +78,7 @@ export async function POST(request: NextRequest) {
       processingTime,
     };
     
-    return NextResponse.json(response, { status: 200 });
+    return NextResponse.json(response, { status: 200, headers: corsHeaders });
     
   } catch (error) {
     console.error('ATS Analysis Error:', error);
@@ -52,7 +88,7 @@ export async function POST(request: NextRequest) {
         error: 'Failed to analyze resume',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
@@ -62,7 +98,10 @@ export async function POST(request: NextRequest) {
  * 
  * Returns API documentation
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+
   return NextResponse.json({
     endpoint: '/api/ats/analyze',
     method: 'POST',
@@ -100,5 +139,5 @@ export async function GET() {
       timestamp: 'string (ISO 8601)',
       processingTime: 'number (milliseconds)',
     },
-  });
+  }, { headers: corsHeaders });
 }

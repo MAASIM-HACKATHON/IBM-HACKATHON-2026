@@ -82,7 +82,7 @@ export async function analyzeResume(
   resume: CandidateResume,
   jobs: JobRole[]
 ): Promise<ATSAnalysisResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/ats/analyze`, {
+  const response = await fetch(`${API_BASE_URL}/ats/analyze`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
