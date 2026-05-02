@@ -261,15 +261,15 @@ export async function POST(request: NextRequest) {
     let parsedData: ParsedResumeData;
     
     if (USE_AI_PARSER && aiParser.isAvailable()) {
-      console.log(`\n[${new Date().toISOString()}] 🤖 STEP 6: AI-Powered Resume Parsing`);
-      console.log('Using Watsonx Granite for intelligent parsing...');
+      console.log(`\n[${new Date().toISOString()}] 🤖 STEP 6: AI-Powered Resume Parsing (Optimized)`);
+      console.log('Using Watsonx Granite with token optimizations...');
       
       try {
         const aiStartTime = Date.now();
         
-        // Step 6.1: AI structuring
-        console.log('  [6.1] Calling Watsonx Granite AI...');
-        const aiParsedData = await aiParser.parseResume(text);
+        // Step 6.1: AI structuring with optimizations (caching, chunking, deduplication, smart routing)
+        console.log('  [6.1] Calling optimized AI parser...');
+        const aiParsedData = await aiParser.parseResumeOptimized(text, () => parseResumeText(text));
         console.log('  ✓ AI parsing complete');
         
         // Step 6.2: Schema validation
