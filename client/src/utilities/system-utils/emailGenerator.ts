@@ -6,13 +6,17 @@ export type EmailTone = 'formal' | 'professional' | 'friendly' | 'enthusiastic';
 export type RefinementOption = 'none' | 'shorter' | 'longer' | 'more-formal' | 'more-casual';
 
 export interface EmailFormValues {
-  company: string;
-  extraInstruction: string;
-  jobRole: string;
-  keyPoints: string;
+  // Core fields
   purpose: EmailPurpose;
-  refinement: RefinementOption;
   tone: EmailTone;
+  refinement: RefinementOption;
+  
+  // Generalized universal fields
+  contextMessage: string;       // Previous email, job description, event details, etc.
+  yourMessage: string;          // What user wants to communicate (rough draft)
+  recipientInfo: string;        // Name, company, or any relevant details
+  extraInstruction: string;     // Additional AI instructions
+  
   // Multi-language support
   targetLanguage?: SupportedLanguage;
   autoDetectLanguage?: boolean;
@@ -59,16 +63,20 @@ export function normalizeKeyPoints(keyPoints: string): string[] {
 export function validateEmailInput(values: EmailFormValues): string[] {
   const issues: string[] = [];
 
-  if (values.jobRole.trim().length < 3) {
-    issues.push('Add a clearer target job role before generating.');
+  // Universal validation - what user wants to say is always required
+  if (values.yourMessage.trim().length < 10) {
+    issues.push('Please describe what you want to say (at least 10 characters).');
   }
 
-  if (values.company.trim().length < 2) {
-    issues.push('Add the target company name before generating.');
+  // Context validation based on purpose
+  if (values.purpose === 'follow-up' && values.contextMessage.trim().length === 0) {
+    issues.push('For follow-ups, please provide the previous message or conversation context.');
   }
 
-  if (normalizeKeyPoints(values.keyPoints).length === 0) {
-    issues.push('Add at least one key message point so the AI has context.');
+  // Helpful warnings (not blocking)
+  if (values.contextMessage.trim().length === 0 && values.purpose === 'job-application') {
+    // Context is helpful for job applications but not strictly required
+    console.warn('Job description context would improve the email quality');
   }
 
   return issues;
@@ -198,9 +206,46 @@ function getLanguageDisplayName(language: SupportedLanguage): string {
   return names[language] || language;
 }
 
+/**
+ * Get purpose-specific AI guidance (not rigid templates)
+ */
+function getPurposeGuidance(purpose: EmailPurpose): string[] {
+  const guidance: Record<EmailPurpose, string[]> = {
+    'job-application': [
+      'Structure: Greeting → Express interest in role → Highlight relevant qualifications → Close with call to action',
+      'Keep professional and enthusiastic',
+      'Show genuine interest in the company and role'
+    ],
+    'follow-up': [
+      'Reference the previous communication naturally',
+      'Be polite and respectful of their time',
+      'Reaffirm interest without being pushy',
+      'Keep it brief and to the point'
+    ],
+    'thank-you': [
+      'Express genuine gratitude',
+      'Reference specific points from the conversation',
+      'Reinforce interest in next steps',
+      'Keep it warm but professional'
+    ],
+    'networking': [
+      'Be friendly but professional',
+      'Show genuine interest in connecting',
+      'Explain why you\'re reaching out',
+      'Suggest a specific next step (call, coffee, etc.)'
+    ],
+    'inquiry': [
+      'Be clear about what you\'re asking',
+      'Provide relevant background briefly',
+      'Make it easy for them to respond',
+      'Show respect for their time'
+    ]
+  };
+  
+  return guidance[purpose] || [];
+}
+
 export function buildEmailPrompt(values: EmailFormValues): string {
-  const keyPoints = normalizeKeyPoints(values.keyPoints);
-  const sections = getTemplateSections(values.purpose);
   const extraInstruction = values.extraInstruction.trim();
   
   // Multi-language support
@@ -209,12 +254,38 @@ export function buildEmailPrompt(values: EmailFormValues): string {
   const culturalContext = getCulturalContext(targetLanguage);
   
   const baseInstructions = [
-    'You are assisting with a lightweight career email generator.',
-    'Write a realistic email draft for a job seeker.',
-    `Purpose: ${PURPOSE_LABELS[values.purpose]}.`,
-    `Tone instruction: Use a ${TONE_INSTRUCTIONS[values.tone]} tone.`,
-    `Target role: ${values.jobRole.trim()}.`,
-    `Target company: ${values.company.trim()}.`,
+    'You are an AI email assistant that helps users write professional emails.',
+    `Purpose: ${PURPOSE_LABELS[values.purpose]}`,
+    `Tone: Use a ${TONE_INSTRUCTIONS[values.tone]} tone.`,
+  ];
+  
+  // Add context if provided
+  const contextInstructions: string[] = [];
+  if (values.contextMessage.trim()) {
+    contextInstructions.push(
+      'Context/Background:',
+      values.contextMessage.trim()
+    );
+  }
+  
+  // Add recipient info if provided
+  if (values.recipientInfo.trim()) {
+    contextInstructions.push(
+      'Recipient Information:',
+      values.recipientInfo.trim()
+    );
+  }
+  
+  // User's message (core content)
+  const userMessageInstructions = [
+    'User wants to communicate:',
+    values.yourMessage.trim()
+  ];
+  
+  // Purpose-specific guidance
+  const purposeInstructions = [
+    'Guidelines for this email type:',
+    ...getPurposeGuidance(values.purpose)
   ];
   
   // Add cultural adaptation instructions
@@ -222,15 +293,10 @@ export function buildEmailPrompt(values: EmailFormValues): string {
     ? buildCulturalInstructions(targetLanguage, culturalContext, values.localizedTone)
     : [];
   
-  const contentInstructions = [
-    'Key message points to incorporate:',
-    ...keyPoints.map((point, index) => `${index + 1}. ${point}`),
-    'Use this structure:',
-    ...sections.map((section, index) => `${index + 1}. ${section}`),
-    `Refinement request: ${REFINEMENT_INSTRUCTIONS[values.refinement]}`,
-    ...(extraInstruction
-      ? [`Additional instruction from the app user: ${extraInstruction}`]
-      : []),
+  // Refinement and extra instructions
+  const refinementInstructions = [
+    `Refinement: ${REFINEMENT_INSTRUCTIONS[values.refinement]}`,
+    ...(extraInstruction ? [`Additional requirements: ${extraInstruction}`] : []),
     'Keep the content grounded and avoid exaggerated claims.',
   ];
   
@@ -243,15 +309,27 @@ export function buildEmailPrompt(values: EmailFormValues): string {
 
   return [
     ...baseInstructions,
+    ...contextInstructions,
+    ...userMessageInstructions,
+    ...purposeInstructions,
     ...culturalInstructions,
-    ...contentInstructions,
+    ...refinementInstructions,
     ...formatInstructions,
   ].join('\n');
 }
 
 function buildFallbackSubject(values: EmailFormValues): string {
   const purpose = PURPOSE_LABELS[values.purpose];
-  return `${purpose}: ${values.jobRole.trim()} at ${values.company.trim()}`;
+  
+  // Try to extract key info from recipient info or context
+  const recipientInfo = values.recipientInfo.trim();
+  
+  if (recipientInfo) {
+    return `${purpose} - ${recipientInfo}`;
+  }
+  
+  // Generic fallback
+  return `${purpose}`;
 }
 
 function cleanEmailBody(body: string): string {

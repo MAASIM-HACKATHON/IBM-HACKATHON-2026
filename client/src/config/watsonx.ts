@@ -96,10 +96,10 @@ export const DEFAULT_EMAIL_FORM_VALUES: EmailFormValues = {
   purpose: 'job-application',
   tone: 'professional',
   refinement: 'none',
-  jobRole: '',
-  company: '',
+  contextMessage: '',
+  yourMessage: '',
+  recipientInfo: '',
   extraInstruction: '',
-  keyPoints: '',
   // Multi-language defaults
   targetLanguage: 'en',
   autoDetectLanguage: true,

@@ -7,7 +7,7 @@ import {
   EMAIL_TONE_OPTIONS,
 } from '../../config/watsonx';
 import { useWatsonxEmailGenerator } from '../../hooks/useWatsonxEmailGenerator';
-import type { EmailFormValues } from '../../utilities/system-utils/emailGenerator';
+import type { EmailFormValues, EmailPurpose } from '../../utilities/system-utils/emailGenerator';
 import { analyzeContentWithWatsonx } from '../../services/contentAnalysisService';
 import { processUploadedFile, formatFileSize } from '../../services/fileProcessingService';
 import LanguageSettingsModal from '../../components/system-components/LanguageSettingsModal';
@@ -16,6 +16,48 @@ import { getLanguageByCode } from '../../config/languages';
 
 const DRAFT_STORAGE_KEY = 'email-composer-draft';
 const DRAFT_TIMESTAMP_KEY = 'email-composer-draft-timestamp';
+
+/**
+ * Get context field label based on purpose
+ */
+function getContextLabel(purpose: EmailPurpose): string {
+  const labels: Record<EmailPurpose, string> = {
+    'job-application': 'Job description or context',
+    'follow-up': 'Previous message or conversation',
+    'thank-you': 'What happened (interview, meeting, etc.)',
+    'networking': 'Connection context',
+    'inquiry': 'What you\'re inquiring about'
+  };
+  return labels[purpose];
+}
+
+/**
+ * Get context field placeholder based on purpose
+ */
+function getContextPlaceholder(purpose: EmailPurpose): string {
+  const placeholders: Record<EmailPurpose, string> = {
+    'job-application': 'Paste the job description or key requirements here...',
+    'follow-up': 'Paste your previous email or describe the conversation...',
+    'thank-you': 'Describe the interview, meeting, or event...',
+    'networking': 'How you found them, why you want to connect...',
+    'inquiry': 'Describe what you\'re asking about...'
+  };
+  return placeholders[purpose];
+}
+
+/**
+ * Get context field help text based on purpose
+ */
+function getContextHelp(purpose: EmailPurpose): string {
+  const help: Record<EmailPurpose, string> = {
+    'job-application': '💡 Paste job description and AI will extract key requirements',
+    'follow-up': '💡 Provide previous message so AI can reference it appropriately',
+    'thank-you': '💡 Describe what you discussed so AI can personalize the email',
+    'networking': '💡 Explain the connection so AI can craft appropriate outreach',
+    'inquiry': '💡 Provide background so AI understands your request'
+  };
+  return help[purpose];
+}
 
 function EmailComposerPage(): ReactElement {
   const [formValues, setFormValues] = useState<EmailFormValues>(() => {
@@ -124,15 +166,12 @@ function EmailComposerPage(): ReactElement {
           fieldsUpdated++;
         }
         
-        // Always update job role if detected by AI
-        if (analysis.jobRole) {
-          updates.jobRole = analysis.jobRole;
-          fieldsUpdated++;
-        }
-        
-        // Always update company if detected by AI
-        if (analysis.company) {
-          updates.company = analysis.company;
+        // Extract recipient info from analysis if available
+        if (analysis.jobRole || analysis.company) {
+          const recipientParts: string[] = [];
+          if (analysis.jobRole) recipientParts.push(analysis.jobRole);
+          if (analysis.company) recipientParts.push(`at ${analysis.company}`);
+          updates.recipientInfo = recipientParts.join(' ');
           fieldsUpdated++;
         }
         
@@ -173,9 +212,9 @@ function EmailComposerPage(): ReactElement {
     }
   };
 
-  // Auto-detect language when key points change
-  const handleKeyPointsChange = (value: string): void => {
-    updateField('keyPoints', value);
+  // Auto-detect language when context message changes
+  const handleContextMessageChange = (value: string): void => {
+    updateField('contextMessage', value);
     
     // Auto-detect language if enabled and sufficient text
     if (formValues.autoDetectLanguage && value.trim().length > 30) {
@@ -209,8 +248,8 @@ function EmailComposerPage(): ReactElement {
         return;
       }
       
-      // Update key points with extracted content
-      updateField('keyPoints', result.content);
+      // Update context message with extracted content
+      updateField('contextMessage', result.content);
       setUploadedFileName(result.fileName);
       
       toast.success(
@@ -503,33 +542,9 @@ function EmailComposerPage(): ReactElement {
                 </label>
               </div>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-200">Job role</span>
-                  <input
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
-                    onChange={(event) => updateField('jobRole', event.target.value)}
-                    placeholder="e.g., Data Analyst, Software Engineer, Product Manager"
-                    type="text"
-                    value={formValues.jobRole}
-                  />
-                </label>
-
-                <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-200">Company</span>
-                  <input
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
-                    onChange={(event) => updateField('company', event.target.value)}
-                    placeholder="e.g., IBM, Google, Microsoft"
-                    type="text"
-                    value={formValues.company}
-                  />
-                </label>
-              </div>
-
               <label className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-200">Key message points</span>
+                  <span className="text-sm font-medium text-slate-200">{getContextLabel(formValues.purpose)}</span>
                   {isAnalyzing && (
                     <span className="text-xs text-cyan-300 animate-pulse">🤖 Analyzing...</span>
                   )}
@@ -596,13 +611,40 @@ function EmailComposerPage(): ReactElement {
                 
                 <textarea
                   className="min-h-40 w-full rounded-[24px] border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
-                  onChange={(event) => handleKeyPointsChange(event.target.value)}
+                  onChange={(event) => updateField('contextMessage', event.target.value)}
                   onPaste={handleKeyPointsPaste}
-                  placeholder="Paste job description, your notes, or key points here. Or upload a file above. Watsonx AI will auto-detect language and fill other fields for you!"
-                  value={formValues.keyPoints}
+                  placeholder={getContextPlaceholder(formValues.purpose)}
+                  value={formValues.contextMessage}
                 />
                 <p className="text-xs leading-5 text-slate-400">
-                  💡 Upload any file, paste text (job description, email draft, notes), and Watsonx AI will intelligently analyze and auto-fill Purpose, Tone, Role, Company, and detect language automatically.
+                  {getContextHelp(formValues.purpose)}
+                </p>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-slate-200">What you want to say</span>
+                <textarea
+                  className="min-h-40 w-full rounded-[24px] border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
+                  onChange={(event) => updateField('yourMessage', event.target.value)}
+                  placeholder="Write your rough thoughts, bullet points, or draft message. AI will polish it into a professional email."
+                  value={formValues.yourMessage}
+                />
+                <p className="text-xs leading-5 text-slate-400">
+                  💡 This is the core of your email. Write naturally - AI will structure and polish it.
+                </p>
+              </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-medium text-slate-200">Recipient info (optional)</span>
+                <input
+                  className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300"
+                  onChange={(event) => updateField('recipientInfo', event.target.value)}
+                  placeholder="e.g., John Smith, HR Manager at IBM"
+                  type="text"
+                  value={formValues.recipientInfo}
+                />
+                <p className="text-xs leading-5 text-slate-400">
+                  💡 Helps AI personalize the email (name, title, company, etc.)
                 </p>
               </label>
 
@@ -814,7 +856,7 @@ function EmailComposerPage(): ReactElement {
         autoDetectLanguage={formValues.autoDetectLanguage ?? true}
         culturalAdaptation={formValues.culturalAdaptation ?? true}
         isOpen={isLanguageSettingsOpen}
-        keyPoints={formValues.keyPoints}
+        keyPoints={formValues.contextMessage}
         localizedTone={formValues.localizedTone}
         onAutoDetectChange={(enabled) => updateField('autoDetectLanguage', enabled)}
         onClose={() => setIsLanguageSettingsOpen(false)}
