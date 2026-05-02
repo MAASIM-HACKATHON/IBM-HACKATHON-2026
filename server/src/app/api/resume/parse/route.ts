@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPythonParserClient, isPythonParserAvailable } from '@/services/pythonParserClient';
+import { ParseResponse as PythonParseResponse } from '@/types/pdf-parser.types';
 
 // Cache pdf-parse import to avoid repeated dynamic imports (performance optimization)
 // @ts-ignore - pdf-parse doesn't have TypeScript definitions
@@ -10,6 +12,9 @@ async function getPdfParse() {
   }
   return pdfParseCache;
 }
+
+// Feature flag for Python parser (can be disabled via env var)
+const USE_PYTHON_PARSER = process.env.USE_PYTHON_PARSER !== 'false';
 
 // Performance tracking
 interface PerformanceMetrics {
@@ -175,16 +180,69 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer();
     console.log('✓ File buffer created, size:', buffer.byteLength, 'bytes');
     
-    console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5: Extracting Text from File`);
-    console.log('File type for extraction:', file.type);
-    const extractStartTime = Date.now();
+    // STEP 4.5: Try Python Parser Service (PyMuPDF) for PDF files
+    let text: string;
+    let usedPythonParser = false;
     
-    const text = await extractTextFromFile(buffer, file.type);
+    if (USE_PYTHON_PARSER && file.type === 'application/pdf') {
+      console.log(`\n[${new Date().toISOString()}] 🐍 STEP 4.5: Attempting Python Parser (PyMuPDF)`);
+      
+      try {
+        const pythonClient = getPythonParserClient();
+        const nodeBuffer = Buffer.from(buffer);
+        
+        console.log('✓ Calling Python parser microservice...');
+        const pythonStartTime = Date.now();
+        
+        const pythonResponse: PythonParseResponse = await pythonClient.parsePDF(
+          nodeBuffer,
+          file.name
+        );
+        
+        const pythonEndTime = Date.now();
+        console.log(`✓ Python parser completed in ${pythonEndTime - pythonStartTime}ms`);
+        console.log(`  Status: ${pythonResponse.status}`);
+        console.log(`  Pages: ${pythonResponse.total_pages}`);
+        console.log(`  Text length: ${pythonResponse.raw_text.length} characters`);
+        
+        if (pythonResponse.status === 'success' && pythonResponse.raw_text) {
+          text = pythonResponse.raw_text;
+          usedPythonParser = true;
+          console.log('✅ Using Python parser result');
+        } else {
+          console.warn('⚠️  Python parser returned failed status, falling back to pdf-parse');
+          console.warn(`  Error: ${pythonResponse.error}`);
+          throw new Error(pythonResponse.error || 'Python parser failed');
+        }
+        
+      } catch (pythonError) {
+        console.warn('⚠️  Python parser unavailable or failed, falling back to pdf-parse');
+        console.warn('  Error:', pythonError instanceof Error ? pythonError.message : String(pythonError));
+        
+        // Fallback to pdf-parse
+        console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5 (Fallback): Extracting Text with pdf-parse`);
+        const extractStartTime = Date.now();
+        text = await extractTextFromFile(buffer, file.type);
+        const extractEndTime = Date.now();
+        console.log(`✓ Fallback extraction completed in ${extractEndTime - extractStartTime}ms`);
+      }
+    } else {
+      // Use existing extraction for non-PDF files or if Python parser disabled
+      console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5: Extracting Text from File`);
+      console.log('File type for extraction:', file.type);
+      const extractStartTime = Date.now();
+      
+      text = await extractTextFromFile(buffer, file.type);
+      
+      const extractEndTime = Date.now();
+      console.log(`✓ Text extraction completed in ${extractEndTime - extractStartTime}ms`);
+    }
     
-    const extractEndTime = Date.now();
-    console.log(`✓ Text extraction completed in ${extractEndTime - extractStartTime}ms`);
-    console.log('Extracted text length:', text.length, 'characters');
-    console.log('Extracted text preview (first 500 chars):\n', text.substring(0, 500));
+    // Log extraction summary
+    console.log(`\n[${new Date().toISOString()}] ✅ Text Extraction Complete`);
+    console.log(`  Parser used: ${usedPythonParser ? 'Python (PyMuPDF)' : 'pdf-parse'}`);
+    console.log(`  Extracted text length: ${text.length} characters`);
+    console.log(`  Text preview (first 500 chars):\n${text.substring(0, 500)}`);
 
     // Parse the resume
     console.log(`\n[${new Date().toISOString()}] 🔍 STEP 6: Parsing Resume Text`);
