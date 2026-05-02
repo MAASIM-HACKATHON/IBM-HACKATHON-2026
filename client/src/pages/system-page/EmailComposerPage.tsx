@@ -212,28 +212,28 @@ function EmailComposerPage(): ReactElement {
     }
   };
 
-  // Auto-detect language when context message changes
-  const handleContextMessageChange = (value: string): void => {
-    updateField('contextMessage', value);
-    
-    // Auto-detect language if enabled and sufficient text
-    if (formValues.autoDetectLanguage && value.trim().length > 30) {
-      // Debounce language detection
-      setTimeout(() => {
-        import('../../utilities/system-utils/languageDetector').then(({ detectLanguageFromKeyPoints, isConfidentDetection }) => {
-          const result = detectLanguageFromKeyPoints(value);
-          
-          if (isConfidentDetection(result) && result.detectedLanguage !== formValues.targetLanguage) {
-            updateField('targetLanguage', result.detectedLanguage);
-            toast.success(
-              `🌍 Language detected: ${result.detectedLanguage.toUpperCase()} (${result.confidence}% confidence)`,
-              { duration: 3000 }
-            );
-          }
-        });
-      }, 1000);
-    }
-  };
+  // Auto-detect language when context message changes (currently unused but kept for future feature)
+  // const handleContextMessageChange = (value: string): void => {
+  //   updateField('contextMessage', value);
+  //   
+  //   // Auto-detect language if enabled and sufficient text
+  //   if (formValues.autoDetectLanguage && value.trim().length > 30) {
+  //     // Debounce language detection
+  //     setTimeout(() => {
+  //       import('../../utilities/system-utils/languageDetector').then(({ detectLanguageFromKeyPoints, isConfidentDetection }) => {
+  //         const result = detectLanguageFromKeyPoints(value);
+  //         
+  //         if (isConfidentDetection(result) && result.detectedLanguage !== formValues.targetLanguage) {
+  //           updateField('targetLanguage', result.detectedLanguage);
+  //           toast.success(
+  //             `🌍 Language detected: ${result.detectedLanguage.toUpperCase()} (${result.confidence}% confidence)`,
+  //             { duration: 3000 }
+  //           );
+  //         }
+  //       });
+  //     }, 1000);
+  //   }
+  // };
 
   // Handle file upload
   const handleFileUpload = async (file: File): Promise<void> => {

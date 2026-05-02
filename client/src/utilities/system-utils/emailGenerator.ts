@@ -82,51 +82,6 @@ export function validateEmailInput(values: EmailFormValues): string[] {
   return issues;
 }
 
-function getTemplateSections(purpose: EmailPurpose): string[] {
-  if (purpose === 'job-application') {
-    return [
-      'Greeting',
-      'Opening that states the role and intent to apply',
-      'Body that highlights 2 to 3 relevant strengths',
-      'Closing with gratitude and interest in next steps',
-    ];
-  }
-
-  if (purpose === 'follow-up') {
-    return [
-      'Greeting',
-      'Opening that references a previous application or conversation',
-      'Body that reaffirms fit and continued interest',
-      'Closing that politely asks for an update',
-    ];
-  }
-
-  if (purpose === 'thank-you') {
-    return [
-      'Greeting',
-      'Opening that expresses gratitude for the opportunity or conversation',
-      'Body that reinforces interest and highlights key takeaways',
-      'Closing that looks forward to next steps',
-    ];
-  }
-
-  if (purpose === 'networking') {
-    return [
-      'Greeting',
-      'Opening that introduces yourself and explains the connection request',
-      'Body that shows genuine interest and offers value',
-      'Closing that suggests a specific next step (coffee, call, etc.)',
-    ];
-  }
-
-  return [
-    'Greeting',
-    'Opening that introduces the candidate and purpose of inquiry',
-    'Body that asks about role fit or opportunities while showing value',
-    'Closing that invites a response or connection',
-  ];
-}
-
 /**
  * Build cultural adaptation instructions based on target language
  */
@@ -205,6 +160,54 @@ function getLanguageDisplayName(language: SupportedLanguage): string {
   };
   return names[language] || language;
 }
+
+/**
+ * Get template sections (currently unused but kept for reference)
+ */
+// function getTemplateSections(purpose: EmailPurpose): string[] {
+//   if (purpose === 'job-application') {
+//     return [
+//       'Greeting',
+//       'Opening that states the role and intent to apply',
+//       'Body that highlights 2 to 3 relevant strengths',
+//       'Closing with gratitude and interest in next steps',
+//     ];
+//   }
+// 
+//   if (purpose === 'follow-up') {
+//     return [
+//       'Greeting',
+//       'Opening that references a previous application or conversation',
+//       'Body that reaffirms fit and continued interest',
+//       'Closing that politely asks for an update',
+//     ];
+//   }
+// 
+//   if (purpose === 'thank-you') {
+//     return [
+//       'Greeting',
+//       'Opening that expresses gratitude for the opportunity or conversation',
+//       'Body that reinforces interest and highlights key takeaways',
+//       'Closing that looks forward to next steps',
+//     ];
+//   }
+// 
+//   if (purpose === 'networking') {
+//     return [
+//       'Greeting',
+//       'Opening that introduces yourself and explains the connection request',
+//       'Body that shows genuine interest and offers value',
+//       'Closing that suggests a specific next step (coffee, call, etc.)',
+//     ];
+//   }
+// 
+//   return [
+//     'Greeting',
+//     'Opening that introduces the candidate and purpose of inquiry',
+//     'Body that asks about role fit or opportunities while showing value',
+//     'Closing that invites a response or connection',
+//   ];
+// }
 
 /**
  * Get purpose-specific AI guidance (not rigid templates)

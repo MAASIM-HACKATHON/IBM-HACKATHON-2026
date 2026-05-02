@@ -104,12 +104,12 @@ function sanitizeText(text: string): string {
 }
 
 /**
- * Validate and sanitize array data
+ * Validate and sanitize array data (currently unused but kept for future use)
  */
-function sanitizeArray<T>(arr: any, validator: (item: any) => T | null): T[] {
-  if (!Array.isArray(arr)) return [];
-  return arr.map(validator).filter((item): item is T => item !== null);
-}
+// function sanitizeArray<T>(arr: any, validator: (item: any) => T | null): T[] {
+//   if (!Array.isArray(arr)) return [];
+//   return arr.map(validator).filter((item): item is T => item !== null);
+// }
 
 // PDF Generation Options
 export interface PDFGenerationOptions {
@@ -165,7 +165,7 @@ export async function generateResumePDFBlob(
     const sanitizedData = sanitizeResumeData(data);
     
     // Format resume content
-    const content = formatResumeContent(sanitizedData, type);
+    const content = formatResumeContent(sanitizedData);
     
     // Create metadata
     const metadata: PDFMetadata = {
@@ -265,7 +265,7 @@ export async function textToPDFBlob(
 /**
  * Format resume content for PDF display
  */
-function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimized'): string {
+function formatResumeContent(data: ParsedResumeData): string {
   const { parsedSections } = data;
   let content = '';
   

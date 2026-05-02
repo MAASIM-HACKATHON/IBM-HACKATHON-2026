@@ -3,7 +3,7 @@
  * Comprehensive type definitions for the AI Resume Builder & ATS Optimizer
  */
 
-import type { CandidateResume, ATSResult, JobRole } from '../services/atsService';
+import type { CandidateResume, ATSResult } from '../services/atsService';
 
 // Resume Generation Types
 export interface ResumeGenerationRequest {

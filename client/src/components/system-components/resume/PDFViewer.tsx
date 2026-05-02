@@ -72,7 +72,6 @@ function PDFViewer({
   const [numPages, setNumPages] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
   const [scale, setScale] = useState<number>(initialScale);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState<number>(0);
 
@@ -83,7 +82,6 @@ function PDFViewer({
   const handleLoadSuccess = useCallback(
     ({ numPages: loadedPages }: { numPages: number }) => {
       setNumPages(loadedPages);
-      setIsLoading(false);
       setError(null);
       setRetryCount(0);
       onLoadSuccess?.(loadedPages);
@@ -96,7 +94,6 @@ function PDFViewer({
   const handleLoadError = useCallback(
     (err: Error) => {
       console.error('PDF load error:', err);
-      setIsLoading(false);
       setError(err.message || 'Failed to load PDF');
       onLoadError?.(err);
       
@@ -112,7 +109,6 @@ function PDFViewer({
   // Retry loading
   const handleRetry = useCallback(() => {
     setError(null);
-    setIsLoading(true);
     setRetryCount(prev => prev + 1);
   }, []);
 
