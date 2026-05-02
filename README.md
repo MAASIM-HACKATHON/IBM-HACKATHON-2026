@@ -20,7 +20,7 @@ People waste time writing emails or don't sound professional.
 **Windows:**
 ```bash
 # Double-click or run from command prompt
-start-windows.bat
+.\start-windows.bat
 ```
 
 **macOS/Linux:**
