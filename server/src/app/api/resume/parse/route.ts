@@ -1,4 +1,30 @@
- import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+// Cache pdf-parse import to avoid repeated dynamic imports (performance optimization)
+// @ts-ignore - pdf-parse doesn't have TypeScript definitions
+let pdfParseCache: any = null;
+async function getPdfParse() {
+  if (!pdfParseCache) {
+    // @ts-ignore - pdf-parse doesn't have TypeScript definitions
+    pdfParseCache = (await import('pdf-parse')).default;
+  }
+  return pdfParseCache;
+}
+
+// Performance tracking
+interface PerformanceMetrics {
+  extractionTime: number;
+  parsingTime: number;
+  totalTime: number;
+}
+
+// Environment-based logging (reduce verbosity in production)
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const log = {
+  info: (...args: any[]) => isDevelopment && console.log(...args),
+  error: (...args: any[]) => console.error(...args),
+  debug: (...args: any[]) => isDevelopment && console.log(...args),
+};
 
 interface ParsedResumeData {
   rawText: string;
@@ -223,60 +249,70 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
   if (mimeType === 'application/pdf') {
     console.log('✓ Detected as PDF - using pdf-parse v1.x library');
     try {
-      // Validate buffer contains PDF signature
+      // Optimize: Create Uint8Array view without copying data
       const uint8Array = new Uint8Array(buffer);
-      const pdfSignature = String.fromCharCode(...uint8Array.slice(0, 4));
-      console.log('✓ PDF signature check:', pdfSignature);
-      if (pdfSignature !== '%PDF') {
+      
+      // Fast PDF signature validation (only check first 4 bytes)
+      if (uint8Array[0] !== 0x25 || uint8Array[1] !== 0x50 ||
+          uint8Array[2] !== 0x44 || uint8Array[3] !== 0x46) {
         throw new Error('Invalid PDF file: Missing PDF signature');
       }
+      console.log('✓ PDF signature validated');
       
       console.log('✓ Parsing PDF with pdf-parse v1.x...');
       
-      // CRITICAL FIX: Convert ArrayBuffer to Node.js Buffer
-      // pdf-parse requires Node.js Buffer, not ArrayBuffer
+      // OPTIMIZED: Convert ArrayBuffer to Node.js Buffer efficiently
+      // Buffer.from() with ArrayBuffer creates a view, not a copy (memory efficient)
       const nodeBuffer = Buffer.from(buffer);
-      console.log('✓ Converted to Node.js Buffer, size:', nodeBuffer.length, 'bytes');
+      console.log('✓ Buffer ready, size:', nodeBuffer.length, 'bytes');
       
-      // Use dynamic import to avoid test file loading issues with require()
-      const pdfParse = (await import('pdf-parse')).default;
+      // Use cached pdf-parse import for better performance
+      const pdfParse = await getPdfParse();
       
       // Parse PDF - v1.x accepts Buffer directly and returns a promise
+      const parseStartTime = Date.now();
       const result = await pdfParse(nodeBuffer);
+      const parseEndTime = Date.now();
+      
+      console.log(`✓ PDF parsing completed in ${parseEndTime - parseStartTime}ms`);
       
       console.log('✓ PDF parsed successfully');
       console.log('  - Total pages:', result.numpages);
       console.log('  - Text length:', result.text.length, 'characters');
       console.log('  - Raw text preview (first 500 chars):', result.text.substring(0, 500));
       
-      // CRITICAL VALIDATION: Ensure extracted text is valid and meaningful
+      // OPTIMIZED VALIDATION: Ensure extracted text is valid and meaningful
       const extractedText = result.text?.trim() || '';
+      const textLength = extractedText.length;
       const minValidTextLength = 100; // Minimum characters for a valid resume
       
-      if (extractedText.length === 0) {
-        console.error('❌ VALIDATION FAILED: PDF parsed but no text extracted');
+      // Fast validation checks
+      if (textLength === 0) {
+        log.error('❌ VALIDATION FAILED: PDF parsed but no text extracted');
         throw new Error('PDF contains no extractable text. The PDF may be image-based or scanned.');
       }
       
-      if (extractedText.length < minValidTextLength) {
-        console.error(`❌ VALIDATION FAILED: Extracted text too short (${extractedText.length} chars, minimum ${minValidTextLength})`);
-        console.error('Extracted content:', extractedText);
-        throw new Error(`PDF text extraction incomplete. Only ${extractedText.length} characters extracted.`);
+      if (textLength < minValidTextLength) {
+        log.error(`❌ VALIDATION FAILED: Extracted text too short (${textLength} chars, minimum ${minValidTextLength})`);
+        log.debug('Extracted content:', extractedText);
+        throw new Error(`PDF text extraction incomplete. Only ${textLength} characters extracted.`);
       }
       
-      // Check if extracted text looks like an error message (should never happen, but defensive)
-      if (extractedText.toLowerCase().includes('error parsing') || 
-          extractedText.toLowerCase().includes('corrupted') ||
-          extractedText.toLowerCase().includes('password-protected')) {
-        console.error('❌ VALIDATION FAILED: Extracted text appears to be an error message');
-        console.error('Suspicious content:', extractedText);
-        throw new Error('PDF text extraction returned invalid content');
+      // Optimized: Single toLowerCase() call and early exit
+      const lowerText = extractedText.toLowerCase();
+      const errorIndicators = ['error parsing', 'corrupted', 'password-protected'];
+      for (const indicator of errorIndicators) {
+        if (lowerText.includes(indicator)) {
+          log.error('❌ VALIDATION FAILED: Extracted text appears to be an error message');
+          log.debug('Suspicious content:', extractedText.substring(0, 200));
+          throw new Error('PDF text extraction returned invalid content');
+        }
       }
       
-      console.log('✅ PDF extraction complete and validated');
-      console.log(`   - Extracted ${extractedText.length} characters`);
-      console.log(`   - Contains ${extractedText.split(/\s+/).length} words`);
-      console.log(`   - Contains ${extractedText.split(/\n/).length} lines`);
+      log.info('✅ PDF extraction complete and validated');
+      log.debug(`   - Extracted ${textLength} characters`);
+      log.debug(`   - Contains ${extractedText.split(/\s+/).length} words`);
+      log.debug(`   - Contains ${extractedText.split(/\n/).length} lines`);
       
       return extractedText;
     } catch (error) {
