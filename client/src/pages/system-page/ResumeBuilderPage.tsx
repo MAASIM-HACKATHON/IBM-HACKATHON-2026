@@ -313,6 +313,7 @@ function ResumeBuilderPage(): ReactElement {
                   generatedResume={resumeBuilder.generatedResume}
                   viewMode={viewMode}
                   onViewModeChange={setViewMode}
+                  uploadedFile={resumeBuilder.uploadedFile?.file}
                 />
               )}
 
