@@ -110,23 +110,40 @@ export async function textToPDFBlob(
     // Calculate page dimensions
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const textWidth = pageWidth - mergedOptions.margins.left - mergedOptions.margins.right;
+    const maxWidth = pageWidth - mergedOptions.margins.left - mergedOptions.margins.right;
     const lineHeightPt = mergedOptions.fontSize * mergedOptions.lineHeight;
     
-    // Split content into lines
-    const lines = doc.splitTextToSize(content, textWidth);
     let y = mergedOptions.margins.top;
     
-    // Add lines to PDF
-    lines.forEach((line: string) => {
+    // Process content line by line with proper wrapping
+    const contentLines = content.split('\n');
+    
+    contentLines.forEach((line) => {
       // Check if we need a new page
       if (y + lineHeightPt > pageHeight - mergedOptions.margins.bottom) {
         doc.addPage();
         y = mergedOptions.margins.top;
       }
       
-      doc.text(line, mergedOptions.margins.left, y);
-      y += lineHeightPt;
+      // Handle empty lines
+      if (line.trim() === '') {
+        y += lineHeightPt;
+        return;
+      }
+      
+      // Split long lines to fit width
+      const wrappedLines = doc.splitTextToSize(line, maxWidth);
+      
+      wrappedLines.forEach((wrappedLine: string) => {
+        // Check again for page break
+        if (y + lineHeightPt > pageHeight - mergedOptions.margins.bottom) {
+          doc.addPage();
+          y = mergedOptions.margins.top;
+        }
+        
+        doc.text(wrappedLine, mergedOptions.margins.left, y);
+        y += lineHeightPt;
+      });
     });
     
     // Return as blob
@@ -241,21 +258,22 @@ function formatResumeContent(data: ParsedResumeData, type: 'original' | 'optimiz
   }
   
   // Certifications
-  if (parsedSections.certifications.length > 0) {
-    content += '═'.repeat(80) + '\n';
+  if (parsedSections.certifications && parsedSections.certifications.length > 0) {
     content += 'CERTIFICATIONS\n';
-    content += '═'.repeat(80) + '\n\n';
+    content += '_'.repeat(70) + '\n\n';
     
     parsedSections.certifications.forEach(cert => {
-      content += `  • ${cert}\n`;
+      // Handle both string and object certifications
+      const certText = typeof cert === 'string' ? cert :
+                      (cert as any).name || (cert as any).title || JSON.stringify(cert);
+      content += `• ${certText}\n`;
     });
     content += '\n';
   }
   
   // Footer
-  content += '═'.repeat(80) + '\n';
+  content += '\n' + '_'.repeat(70) + '\n';
   content += `Generated on ${new Date().toLocaleDateString()} by IBM Watsonx AI Resume Builder\n`;
-  content += '═'.repeat(80) + '\n';
   
   return content;
 }
