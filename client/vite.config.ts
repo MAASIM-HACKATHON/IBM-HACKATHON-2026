@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 const WATSONX_PROXY_PATH = '/api/watsonx/test';
 
@@ -241,4 +242,9 @@ function createWatsonxProxyPlugin(mode: string): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [react(), createWatsonxProxyPlugin(mode)],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
 }));

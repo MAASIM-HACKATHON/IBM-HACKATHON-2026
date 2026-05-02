@@ -1,209 +1,238 @@
 import { type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Mail, FileText, Sparkles, Zap, Shield, Settings } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 function HomePage(): ReactElement {
   const navigate = useNavigate();
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
   return (
-    <main className="min-h-screen bg-linear-to-b from-slate-50 to-slate-100 px-4 py-10 text-slate-900 dark:from-slate-900 dark:to-slate-950 dark:text-slate-100 sm:px-6 lg:px-10 xl:px-12">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-12 pb-16">
-        {/* Header Section */}
-        <section className="text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-cyan-700 dark:text-cyan-100">
-            ✓ IBM watsonx AI Powered
-          </div>
-          
-          <h1 className="mt-8 font-['IBM_Plex_Sans','Segoe_UI',sans-serif] text-5xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-6xl lg:text-7xl">
-            IBM x Bob
+    <div className="w-full space-y-16">
+      {/* Hero Section - Sub-task 7.1 */}
+      <section className="text-center space-y-6">
+        <Badge 
+          variant="outline" 
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border-[#2C4C82]/20 bg-[#2C4C82]/5 text-[#2C4C82] dark:border-[#2C4C82]/30 dark:bg-[#2C4C82]/10 dark:text-[#2C4C82]/90"
+        >
+          <Sparkles className="h-4 w-4" />
+          Powered by IBM Watsonx AI
+        </Badge>
+
+        <div className="space-y-4">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground">
+            AI-Powered Professional Tools
           </h1>
-          <p className="mt-4 text-xl font-medium text-cyan-600 dark:text-cyan-300">MAASIM TEAM</p>
-          
-          <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300 sm:text-lg">
-            Elevate your professional journey with AI-powered tools. Choose from our intelligent 
-            solutions designed to streamline your career advancement and communication needs.
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+            Streamline your career with intelligent email composition and resume building powered by IBM Watsonx AI
           </p>
-        </section>
+        </div>
+      </section>
 
-        {/* Feature Cards */}
-        <section className="grid gap-8 lg:grid-cols-2">
-          {/* Smart Email Composer Card */}
-          <article 
-            className="group relative overflow-hidden rounded-[32px] border border-cyan-400/20 bg-white/80 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.1)] backdrop-blur transition-all hover:border-cyan-400/40 hover:shadow-[0_30px_90px_rgba(6,182,212,0.2)] dark:bg-slate-950/70 dark:shadow-[0_30px_80px_rgba(7,14,26,0.45)] dark:hover:shadow-[0_40px_100px_rgba(103,232,249,0.15)] sm:p-10"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate('/email-composer')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                navigate('/email-composer');
-              }
-            }}
-          >
-            <div className="absolute right-0 top-0 h-40 w-40 bg-cyan-400/5 blur-3xl"></div>
-            
-            <div className="relative">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-400/10 ring-1 ring-cyan-400/20">
-                <svg className="h-8 w-8 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
+      {/* Feature Highlight Cards - Sub-task 7.2 */}
+      <section className="grid md:grid-cols-2 gap-6">
+        {/* Email Generator Card */}
+        <Card 
+          className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-border"
+          onClick={() => handleNavigation('/email-generator')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleNavigation('/email-generator');
+            }
+          }}
+        >
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="p-3 rounded-lg bg-[#2C4C82]/10 text-[#2C4C82] dark:bg-[#2C4C82]/20">
+                <Mail className="h-6 w-6" />
               </div>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="text-sm text-muted-foreground">Click to start →</span>
+              </div>
+            </div>
 
-              <h2 className="mt-6 text-3xl font-semibold text-slate-900 dark:text-white">
-                Smart Email Composer
-              </h2>
-              
-              <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">
-                Generate professional, context-aware emails using IBM's Granite AI model. Perfect for 
-                job applications, follow-ups, networking, and business communications.
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">Email Generator</h2>
+              <p className="text-muted-foreground">
+                Create professional emails with AI assistance. Perfect for job applications, networking, and business communications.
               </p>
+            </div>
 
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>AI-powered content generation</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Smart auto-fill from pasted content</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Multiple tone and purpose options</span>
-                </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="text-xs">AI-Powered</Badge>
+              <Badge variant="secondary" className="text-xs">Auto-Fill</Badge>
+              <Badge variant="secondary" className="text-xs">Multi-Language</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Resume Builder Card */}
+        <Card 
+          className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-border"
+          onClick={() => handleNavigation('/resume-builder')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleNavigation('/resume-builder');
+            }
+          }}
+        >
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="p-3 rounded-lg bg-[#2C4C82]/10 text-[#2C4C82] dark:bg-[#2C4C82]/20">
+                <FileText className="h-6 w-6" />
               </div>
-
-              <div className="mt-8 flex items-center gap-2 text-sm font-medium text-cyan-600 transition group-hover:gap-4 dark:text-cyan-300">
-                <span>Get Started</span>
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="text-sm text-muted-foreground">Click to start →</span>
               </div>
             </div>
-          </article>
 
-          {/* Resume Builder with ATS Checker Card */}
-          <article 
-            className="group relative overflow-hidden rounded-[32px] border border-purple-400/20 bg-white/80 p-8 shadow-[0_20px_70px_rgba(0,0,0,0.1)] backdrop-blur transition-all hover:border-purple-400/40 hover:shadow-[0_30px_90px_rgba(168,85,247,0.2)] dark:bg-slate-950/70 dark:shadow-[0_30px_80px_rgba(7,14,26,0.45)] dark:hover:shadow-[0_40px_100px_rgba(192,132,252,0.15)] sm:p-10"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate('/resume-builder')}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                navigate('/resume-builder');
-              }
-            }}
-          >
-            <div className="absolute right-0 top-0 h-40 w-40 bg-purple-400/5 blur-3xl"></div>
-            
-            <div className="relative">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-purple-400/10 ring-1 ring-purple-400/20">
-                <svg className="h-8 w-8 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-
-              <h2 className="mt-6 text-3xl font-semibold text-slate-900 dark:text-white">
-                AI Resume Builder & ATS Optimizer
-              </h2>
-              
-              <p className="mt-4 text-base leading-7 text-slate-600 dark:text-slate-300">
-                Create ATS-friendly resumes and CVs with AI assistance. Optimize your resume for 
-                Applicant Tracking Systems and get real-time feedback to maximize your job prospects.
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-foreground">Resume Builder</h2>
+              <p className="text-muted-foreground">
+                Build ATS-optimized resumes with AI. Get instant feedback and maximize your chances of landing interviews.
               </p>
+            </div>
 
-              <div className="mt-6 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>AI-powered resume generation</span>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="text-xs">ATS Optimization</Badge>
+              <Badge variant="secondary" className="text-xs">AI Analysis</Badge>
+              <Badge variant="secondary" className="text-xs">Live Preview</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Workflow Explanation Section - Sub-task 7.3 */}
+      <section className="space-y-8">
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-bold text-foreground">How It Works</h2>
+          <p className="text-muted-foreground">Simple steps to enhance your professional content</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Step 1 */}
+          <Card className="border-border">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#2C4C82] text-white text-sm font-semibold">
+                  1
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>ATS compatibility checker</span>
+                <h3 className="text-lg font-semibold text-foreground">Choose Your Tool</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Select Email Generator or Resume Builder based on your needs
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Step 2 */}
+          <Card className="border-border">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#2C4C82] text-white text-sm font-semibold">
+                  2
                 </div>
-                <div className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
-                  <svg className="h-5 w-5 text-emerald-500 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span>Real-time optimization suggestions</span>
+                <h3 className="text-lg font-semibold text-foreground">Provide Context</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Enter your information or upload existing documents for AI analysis
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Step 3 */}
+          <Card className="border-border">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#2C4C82] text-white text-sm font-semibold">
+                  3
                 </div>
+                <h3 className="text-lg font-semibold text-foreground">Generate & Refine</h3>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Let AI create professional content, then refine to perfection
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
 
-              <div className="mt-8 flex items-center gap-2 text-sm font-medium text-purple-600 transition group-hover:gap-4 dark:text-purple-300">
-                <span>Get Started</span>
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </div>
-            </div>
-          </article>
-        </section>
-
-        {/* Features Overview */}
-        <section className="rounded-[32px] border border-slate-200 bg-white/80 p-8 backdrop-blur dark:border-white/10 dark:bg-slate-950/50 sm:p-10">
-          <h3 className="text-center text-2xl font-semibold text-slate-900 dark:text-white">
-            Powered by IBM Watsonx AI
-          </h3>
-          
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/10">
-                <svg className="h-6 w-6 text-cyan-600 dark:text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h4 className="mt-4 font-medium text-slate-900 dark:text-white">Lightning Fast</h4>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Generate content in seconds</p>
+      {/* Call-to-Action Section - Sub-task 7.4 */}
+      <section className="space-y-6">
+        <Card className="border-[#2C4C82]/20 bg-gradient-to-br from-[#2C4C82]/5 to-transparent">
+          <CardContent className="p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground">Ready to Get Started?</h2>
+              <p className="text-muted-foreground">Choose a tool and experience the power of AI-assisted content creation</p>
             </div>
 
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400/10">
-                <svg className="h-6 w-6 text-emerald-600 dark:text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-              </div>
-              <h4 className="mt-4 font-medium text-slate-900 dark:text-white">Enterprise Grade</h4>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">IBM's trusted AI technology</p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button 
+                size="lg"
+                onClick={() => handleNavigation('/email-generator')}
+                className="w-full sm:w-auto bg-[#2C4C82] hover:bg-[#2C4C82]/90 text-white"
+              >
+                <Mail className="mr-2 h-5 w-5" />
+                Start Email Generator
+              </Button>
+              <Button 
+                size="lg"
+                variant="outline"
+                onClick={() => handleNavigation('/resume-builder')}
+                className="w-full sm:w-auto border-[#2C4C82] text-[#2C4C82] hover:bg-[#2C4C82]/10"
+              >
+                <FileText className="mr-2 h-5 w-5" />
+                Start Resume Builder
+              </Button>
             </div>
+          </CardContent>
+        </Card>
+      </section>
 
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-400/10">
-                <svg className="h-6 w-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-              </div>
-              <h4 className="mt-4 font-medium text-slate-900 dark:text-white">Customizable</h4>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Tailor to your specific needs</p>
-            </div>
-
-            <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-400/10">
-                <svg className="h-6 w-6 text-rose-600 dark:text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <h4 className="mt-4 font-medium text-slate-900 dark:text-white">User Friendly</h4>
-              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">Intuitive and easy to use</p>
-            </div>
+      {/* Platform Features */}
+      <section className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-[#2C4C82]/10 text-[#2C4C82]">
+            <Zap className="h-5 w-5" />
           </div>
-        </section>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">Fast Generation</h3>
+            <p className="text-sm text-muted-foreground">Create content in seconds with AI</p>
+          </div>
+        </div>
 
-        {/* Footer */}
-        <footer className="text-center text-sm text-slate-500 dark:text-slate-400">
-          <p>© 2026 IBM x Bob | MAASIM TEAM. Powered by IBM Watsonx AI.</p>
-        </footer>
-      </div>
-    </main>
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-[#2C4C82]/10 text-[#2C4C82]">
+            <Shield className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">Enterprise-Grade AI</h3>
+            <p className="text-sm text-muted-foreground">Powered by IBM Watsonx</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-[#2C4C82]/10 text-[#2C4C82]">
+            <Settings className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-semibold text-foreground">Customizable</h3>
+            <p className="text-sm text-muted-foreground">Tailor output to your needs</p>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
