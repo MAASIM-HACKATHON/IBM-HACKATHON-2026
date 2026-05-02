@@ -1,0 +1,100 @@
+{
+  "summary": "",
+  "overall_verdict": "PASS | NEEDS_REVISION | MAJOR_CHANGES_REQUIRED",
+
+  "architecture_evaluation": {
+    "clarity_score": 0,
+    "design_correctness_score": 0,
+    "modularity_score": 0,
+    "scalability_score": 0,
+    "security_score": 0,
+    "ai_integration_score": 0
+  },
+
+  "detected_components": [
+    "backend_api",
+    "ats_engine",
+    "ai_service",
+    "database",
+    "message_queue",
+    "cache_layer"
+  ],
+
+  "strengths": [
+    ""
+  ],
+
+  "issues": [
+    {
+      "severity": "LOW | MEDIUM | HIGH | CRITICAL",
+      "component": "",
+      "issue": "",
+      "impact": "",
+      "suggestion": ""
+    }
+  ],
+
+  "missing_components": [
+    ""
+  ],
+
+  "risk_analysis": [
+    {
+      "risk": "",
+      "likelihood": "LOW | MEDIUM | HIGH",
+      "impact": "LOW | MEDIUM | HIGH",
+      "mitigation": ""
+    }
+  ],
+
+  "api_review": {
+    "completeness": 0,
+    "restfulness": 0,
+    "schema_consistency": 0,
+    "notes": [
+      ""
+    ]
+  },
+
+  "data_flow_review": {
+    "clarity": 0,
+    "bottlenecks": [
+      ""
+    ],
+    "issues": [
+      ""
+    ]
+  },
+
+  "security_review": {
+    "authentication": "",
+    "authorization": "",
+    "data_protection": "",
+    "concerns": [
+      ""
+    ]
+  },
+
+  "scalability_review": {
+    "current_limitations": [
+      ""
+    ],
+    "scaling_strategy": [
+      ""
+    ]
+  },
+
+  "recommendations": [
+    ""
+  ],
+
+  "implementation_readiness": {
+    "score": 0,
+    "status": "READY | PARTIALLY_READY | NOT_READY",
+    "blocking_issues": [
+      ""
+    ]
+  },
+
+  "final_notes": ""
+}
