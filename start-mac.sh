@@ -1,18 +1,159 @@
 #!/bin/bash
 # ============================================
-# macOS/Linux Startup Script for Full-Stack MVP
+# macOS/Linux Unified Startup Script
 # ============================================
 # Components:
 # - Client (React/Vite on port 5173)
 # - Server (Next.js on port 3001)
 # - Python Parser (FastAPI on port 8000)
 # ============================================
+# Usage:
+#   ./start-mac.sh           - Start with minimal output
+#   ./start-mac.sh --logs    - Start with full logs visible
+#   ./start-mac.sh --check   - Check service status only
+#   ./start-mac.sh --help    - Show this help
+# ============================================
 
 set -e  # Exit on error
 
+# ============================================
+# Parse Command Line Arguments
+# ============================================
+SHOW_LOGS=false
+CHECK_ONLY=false
+
+for arg in "$@"; do
+    case $arg in
+        --logs)
+            SHOW_LOGS=true
+            shift
+            ;;
+        --check)
+            CHECK_ONLY=true
+            shift
+            ;;
+        --help|-h)
+            echo ""
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  (no args)    Start all services with minimal output"
+            echo "  --logs       Start all services with full logs visible"
+            echo "  --check      Check status of running services"
+            echo "  --help, -h   Show this help message"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "[ERROR] Unknown option: $arg"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# ============================================
+# Function: Check Service Status
+# ============================================
+check_services() {
+    echo ""
+    echo "========================================"
+    echo "  Checking Service Status"
+    echo "========================================"
+    echo ""
+
+    # Check Python Parser (port 8000)
+    echo "🔍 Python Parser (port 8000):"
+    if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        PID=$(lsof -Pi :8000 -sTCP:LISTEN -t)
+        echo "  ✅ RUNNING (PID: $PID)"
+        echo "  📍 URL: http://localhost:8000"
+        echo "  📚 Docs: http://localhost:8000/docs"
+        
+        # Test if responding
+        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+            echo "  ✅ Health check: PASSED"
+        else
+            echo "  ⚠️  Health check: FAILED (service may be starting)"
+        fi
+    else
+        echo "  ❌ NOT RUNNING"
+        echo "  💡 Try: cd server/python-parser && ./venv/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    fi
+
+    echo ""
+
+    # Check Server (port 3001)
+    echo "🔍 Next.js Server (port 3001):"
+    if lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        PID=$(lsof -Pi :3001 -sTCP:LISTEN -t)
+        echo "  ✅ RUNNING (PID: $PID)"
+        echo "  📍 URL: http://localhost:3001"
+        echo "  🔍 AI Status: http://localhost:3001/api/resume/ai-status"
+    else
+        echo "  ❌ NOT RUNNING"
+        echo "  💡 Try: cd server && npm run dev"
+    fi
+
+    echo ""
+
+    # Check Client (port 5173)
+    echo "🔍 React Client (port 5173):"
+    if lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1; then
+        PID=$(lsof -Pi :5173 -sTCP:LISTEN -t)
+        echo "  ✅ RUNNING (PID: $PID)"
+        echo "  📍 URL: http://localhost:5173"
+    else
+        echo "  ❌ NOT RUNNING"
+        echo "  💡 Try: cd client && npm run dev"
+    fi
+
+    echo ""
+    echo "========================================"
+    echo "  Summary"
+    echo "========================================"
+
+    RUNNING=0
+    TOTAL=3
+
+    lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1 && ((RUNNING++)) || true
+    lsof -Pi :3001 -sTCP:LISTEN -t >/dev/null 2>&1 && ((RUNNING++)) || true
+    lsof -Pi :5173 -sTCP:LISTEN -t >/dev/null 2>&1 && ((RUNNING++)) || true
+
+    echo "  Services running: $RUNNING/$TOTAL"
+
+    if [ $RUNNING -eq $TOTAL ]; then
+        echo "  ✅ All services are running!"
+    elif [ $RUNNING -eq 0 ]; then
+        echo "  ❌ No services are running"
+        echo "  💡 Run: ./start-mac.sh"
+    else
+        echo "  ⚠️  Some services are not running"
+        echo "  💡 Check the output above for details"
+    fi
+
+    echo ""
+}
+
+# ============================================
+# If --check flag, just check status and exit
+# ============================================
+if [ "$CHECK_ONLY" = true ]; then
+    check_services
+    exit 0
+fi
+
+# ============================================
+# Start Services
+# ============================================
 echo ""
 echo "========================================"
 echo "  Starting Full-Stack MVP Application"
+if [ "$SHOW_LOGS" = true ]; then
+    echo "  Mode: WITH LOGS"
+else
+    echo "  Mode: MINIMAL OUTPUT"
+fi
 echo "========================================"
 echo ""
 
@@ -84,12 +225,12 @@ cleanup() {
     echo "========================================"
     
     # Kill all background jobs
-    jobs -p | xargs -r kill 2>/dev/null || true
+    jobs -p | xargs kill 2>/dev/null || true
     
     # Kill processes by port (backup)
-    lsof -ti:8000 | xargs -r kill -9 2>/dev/null || true
-    lsof -ti:3001 | xargs -r kill -9 2>/dev/null || true
-    lsof -ti:5173 | xargs -r kill -9 2>/dev/null || true
+    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+    lsof -ti:3001 | xargs kill -9 2>/dev/null || true
+    lsof -ti:5173 | xargs kill -9 2>/dev/null || true
     
     echo "[INFO] All services stopped"
     exit 0
@@ -111,9 +252,13 @@ if [ ! -f "venv/bin/python3" ]; then
     exit 1
 fi
 
-# Start the service with visible output for debugging
+# Start the service
 echo "[INFO] Starting uvicorn server..."
-./venv/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+if [ "$SHOW_LOGS" = true ]; then
+    ./venv/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload &
+else
+    ./venv/bin/python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload > /dev/null 2>&1 &
+fi
 PYTHON_PID=$!
 cd ../..
 
@@ -136,18 +281,41 @@ fi
 # STEP 5: Start Server (Next.js)
 # ============================================
 echo "[5/6] Starting server..."
+if [ "$SHOW_LOGS" = true ]; then
+    echo ""
+    echo "========================================"
+    echo "  WATCH FOR THIS IN SERVER LOGS:"
+    echo "  ✅ Watsonx AI client initialized"
+    echo "     Model: meta-llama/llama-3-8b-instruct"
+    echo "========================================"
+    echo ""
+fi
+
 cd server
-npm run dev > /dev/null 2>&1 &
+if [ "$SHOW_LOGS" = true ]; then
+    npm run dev &
+else
+    npm run dev > /dev/null 2>&1 &
+fi
 SERVER_PID=$!
 cd ..
-sleep 2
+
+if [ "$SHOW_LOGS" = true ]; then
+    sleep 5  # Give it time to show initialization logs
+else
+    sleep 2
+fi
 
 # ============================================
 # STEP 6: Start Client (Vite)
 # ============================================
 echo "[6/6] Starting client..."
 cd client
-npm run dev > /dev/null 2>&1 &
+if [ "$SHOW_LOGS" = true ]; then
+    npm run dev &
+else
+    npm run dev > /dev/null 2>&1 &
+fi
 CLIENT_PID=$!
 cd ..
 sleep 2
@@ -164,12 +332,21 @@ echo "  Client:        http://localhost:5173"
 echo "  Server:        http://localhost:3001"
 echo "  Python Parser: http://localhost:8000"
 echo ""
+echo "  Check AI Status:"
+echo "  http://localhost:3001/api/resume/ai-status"
+echo ""
 echo "  Process IDs:"
 echo "  - Python Parser: $PYTHON_PID"
 echo "  - Server:        $SERVER_PID"
 echo "  - Client:        $CLIENT_PID"
 echo ""
-echo "  Press Ctrl+C to stop all services..."
+if [ "$SHOW_LOGS" = true ]; then
+    echo "  📋 Logs are visible below"
+else
+    echo "  💡 To see logs, restart with: ./start-mac.sh --logs"
+fi
+echo "  🔍 To check status: ./start-mac.sh --check"
+echo "  ⏹️  Press Ctrl+C to stop all services..."
 echo "========================================"
 echo ""
 
@@ -177,4 +354,3 @@ echo ""
 wait
 
 # Made with Bob
-
