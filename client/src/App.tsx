@@ -1,25 +1,23 @@
 import { Toaster } from 'react-hot-toast';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
-import Navbar from './components/system-components/Navbar';
+import { AppLayout } from './components/layout';
 import HomePage from './pages/system-page/HomePage';
 import EmailComposerPage from './pages/system-page/EmailComposerPage';
+import EmailGeneratorPage from './pages/system-page/EmailGeneratorPage';
 import ResumeBuilderPage from './pages/system-page/ResumeBuilderPage';
 import type { ReactElement } from 'react';
 
 function AppContent(): ReactElement {
-  const location = useLocation();
-  const isHomePage = location.pathname === '/';
-
   return (
-    <>
-      {!isHomePage && <Navbar />}
+    <AppLayout>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/email-composer" element={<EmailComposerPage />} />
+        <Route path="/email-generator" element={<EmailGeneratorPage />} />
         <Route path="/resume-builder" element={<ResumeBuilderPage />} />
       </Routes>
-    </>
+    </AppLayout>
   );
 }
 
