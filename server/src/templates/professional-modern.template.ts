@@ -89,18 +89,40 @@ export function generateProfessionalTemplate({ resumeData, isOptimized = false }
     }
 
     .container {
-      display: grid;
-      grid-template-columns: 70% 30%;
-      gap: 20px;
+      width: 100%;
       max-width: 100%;
     }
 
-    /* Header - Full Width */
+    .two-column-layout {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    /* Header */
     .header {
-      grid-column: 1 / -1;
+      width: 100%;
       padding-bottom: 20px;
       border-bottom: 3px solid #1e40af;
       margin-bottom: 20px;
+    }
+
+    .main-column {
+      width: 68%;
+      padding-right: 20px;
+    }
+
+    .sidebar {
+      width: 32%;
+      padding-left: 20px;
+      border-left: 2px solid #e5e7eb;
+    }
+
+    /* Main Column (Left - 70%) */
+    .main-column-content {
+    }
+
+    /* Sidebar (Right - 30%) */
+    .sidebar-content {
     }
 
     .header h1 {
@@ -124,18 +146,6 @@ export function generateProfessionalTemplate({ resumeData, isOptimized = false }
       display: inline-flex;
       align-items: center;
       gap: 4px;
-    }
-
-    /* Main Column (Left - 70%) */
-    .main-column {
-      grid-column: 1;
-    }
-
-    /* Sidebar (Right - 30%) */
-    .sidebar {
-      grid-column: 2;
-      padding-left: 15px;
-      border-left: 2px solid #e5e7eb;
     }
 
     /* Section Styles */
@@ -316,7 +326,7 @@ export function generateProfessionalTemplate({ resumeData, isOptimized = false }
 
     /* Footer */
     .footer {
-      grid-column: 1 / -1;
+      width: 100%;
       margin-top: 20px;
       padding-top: 12px;
       border-top: 2px solid #e5e7eb;
@@ -356,128 +366,133 @@ export function generateProfessionalTemplate({ resumeData, isOptimized = false }
       </div>
     </div>
 
-    <!-- Main Column (Left) -->
-    <div class="main-column">
-      ${parsedSections.summary ? `
-      <!-- Summary -->
-      <div class="section">
-        <h2 class="section-title">Professional Summary</h2>
-        <p class="summary">${parsedSections.summary}</p>
-      </div>
-      ` : ''}
-
-      ${parsedSections.workExperience && parsedSections.workExperience.length > 0 ? `
-      <!-- Work Experience -->
-      <div class="section">
-        <h2 class="section-title">Professional Experience</h2>
-        ${parsedSections.workExperience.map((exp: any) => `
-          <div class="entry">
-            <div class="entry-header">
-              <div class="entry-title">${exp.title || 'Position'}</div>
-              <div class="entry-subtitle">${exp.company || 'Company'}${exp.location ? ` • ${exp.location}` : ''}</div>
-              <div class="entry-duration">${exp.duration || ''}</div>
-            </div>
-            ${exp.description ? `<p class="entry-description">${exp.description}</p>` : ''}
-            ${exp.achievements && exp.achievements.length > 0 ? `
-              <ul class="achievements">
-                ${exp.achievements.map((achievement: string) => `
-                  <li>${achievement}</li>
-                `).join('')}
-              </ul>
-            ` : ''}
+    <!-- Two Column Layout using Table -->
+    <table class="two-column-layout">
+      <tr>
+        <!-- Main Column (Left - 68%) -->
+        <td class="main-column">
+          ${parsedSections.summary ? `
+          <!-- Summary -->
+          <div class="section">
+            <h2 class="section-title">Professional Summary</h2>
+            <p class="summary">${parsedSections.summary}</p>
           </div>
-        `).join('')}
-      </div>
-      ` : ''}
+          ` : ''}
 
-      ${parsedSections.projects && parsedSections.projects.length > 0 ? `
-      <!-- Projects -->
-      <div class="section">
-        <h2 class="section-title">Key Projects</h2>
-        ${parsedSections.projects.map((project: any) => `
-          <div class="entry">
-            <div class="entry-header">
-              <div class="entry-title">${project.name || 'Project'}</div>
-              ${project.role ? `<div class="entry-subtitle">${project.role}</div>` : ''}
-              ${project.duration ? `<div class="entry-duration">${project.duration}</div>` : ''}
-            </div>
-            ${project.description ? `<p class="entry-description">${project.description}</p>` : ''}
-            ${project.achievements && project.achievements.length > 0 ? `
-              <ul class="achievements">
-                ${project.achievements.map((achievement: string) => `
-                  <li>${achievement}</li>
-                `).join('')}
-              </ul>
-            ` : ''}
-            ${project.technologies && project.technologies.length > 0 ? `
-              <div class="tech-list">
-                ${project.technologies.map((tech: string) => `
-                  <span class="tech-badge">${tech}</span>
-                `).join('')}
+          ${parsedSections.workExperience && parsedSections.workExperience.length > 0 ? `
+          <!-- Work Experience -->
+          <div class="section">
+            <h2 class="section-title">Professional Experience</h2>
+            ${parsedSections.workExperience.map((exp: any) => `
+              <div class="entry">
+                <div class="entry-header">
+                  <div class="entry-title">${exp.title || 'Position'}</div>
+                  <div class="entry-subtitle">${exp.company || 'Company'}${exp.location ? ` • ${exp.location}` : ''}</div>
+                  <div class="entry-duration">${exp.duration || ''}</div>
+                </div>
+                ${exp.description ? `<p class="entry-description">${exp.description}</p>` : ''}
+                ${exp.achievements && exp.achievements.length > 0 ? `
+                  <ul class="achievements">
+                    ${exp.achievements.map((achievement: string) => `
+                      <li>${achievement}</li>
+                    `).join('')}
+                  </ul>
+                ` : ''}
               </div>
-            ` : ''}
-            ${project.link ? `<p style="margin-top: 6px; font-size: 9.5pt; color: #3b82f6;">🔗 ${project.link}</p>` : ''}
+            `).join('')}
           </div>
-        `).join('')}
-      </div>
-      ` : ''}
-    </div>
+          ` : ''}
 
-    <!-- Sidebar (Right) -->
-    <div class="sidebar">
-      ${parsedSections.skills && parsedSections.skills.length > 0 ? `
-      <!-- Skills -->
-      <div class="section">
-        <h2 class="section-title">Skills</h2>
-        <div class="skills-list">
-          ${parsedSections.skills.map((skill: string) => `
-            <div class="skill-item">${skill}</div>
-          `).join('')}
-        </div>
-      </div>
-      ` : ''}
-
-      ${parsedSections.education && parsedSections.education.length > 0 ? `
-      <!-- Education -->
-      <div class="section">
-        <h2 class="section-title">Education</h2>
-        ${parsedSections.education.map((edu: any) => `
-          <div class="education-entry">
-            <div class="degree">${edu.degree || 'Degree'}</div>
-            <div class="institution">${edu.institution || 'Institution'}</div>
-            <div class="education-details">
-              ${edu.year ? `${edu.year}` : ''}
-              ${edu.gpa ? ` • GPA: ${edu.gpa}` : ''}
-            </div>
-            ${edu.honors && edu.honors.length > 0 ? `<div class="education-details">${edu.honors.join(', ')}</div>` : ''}
-          </div>
-        `).join('')}
-      </div>
-      ` : ''}
-
-      ${parsedSections.certifications && parsedSections.certifications.length > 0 ? `
-      <!-- Certifications -->
-      <div class="section">
-        <h2 class="section-title">Certifications</h2>
-        ${parsedSections.certifications.map((cert: any) => {
-          if (typeof cert === 'string') {
-            return `
-              <div class="cert-item">
-                <div class="cert-name">${cert}</div>
+          ${parsedSections.projects && parsedSections.projects.length > 0 ? `
+          <!-- Projects -->
+          <div class="section">
+            <h2 class="section-title">Key Projects</h2>
+            ${parsedSections.projects.map((project: any) => `
+              <div class="entry">
+                <div class="entry-header">
+                  <div class="entry-title">${project.name || 'Project'}</div>
+                  ${project.role ? `<div class="entry-subtitle">${project.role}</div>` : ''}
+                  ${project.duration ? `<div class="entry-duration">${project.duration}</div>` : ''}
+                </div>
+                ${project.description ? `<p class="entry-description">${project.description}</p>` : ''}
+                ${project.achievements && project.achievements.length > 0 ? `
+                  <ul class="achievements">
+                    ${project.achievements.map((achievement: string) => `
+                      <li>${achievement}</li>
+                    `).join('')}
+                  </ul>
+                ` : ''}
+                ${project.technologies && project.technologies.length > 0 ? `
+                  <div class="tech-list">
+                    ${project.technologies.map((tech: string) => `
+                      <span class="tech-badge">${tech}</span>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                ${project.link ? `<p style="margin-top: 6px; font-size: 9.5pt; color: #3b82f6;">🔗 ${project.link}</p>` : ''}
               </div>
-            `;
-          }
-          return `
-            <div class="cert-item">
-              <div class="cert-name">${cert.name || cert}</div>
-              ${cert.issuer ? `<div class="cert-issuer">${cert.issuer}</div>` : ''}
-              ${cert.date ? `<div class="cert-date">${cert.date}</div>` : ''}
+            `).join('')}
+          </div>
+          ` : ''}
+        </td>
+
+        <!-- Sidebar (Right - 32%) -->
+        <td class="sidebar">
+          ${parsedSections.skills && parsedSections.skills.length > 0 ? `
+          <!-- Skills -->
+          <div class="section">
+            <h2 class="section-title">Skills</h2>
+            <div class="skills-list">
+              ${parsedSections.skills.map((skill: string) => `
+                <div class="skill-item">${skill}</div>
+              `).join('')}
             </div>
-          `;
-        }).join('')}
-      </div>
-      ` : ''}
-    </div>
+          </div>
+          ` : ''}
+
+          ${parsedSections.education && parsedSections.education.length > 0 ? `
+          <!-- Education -->
+          <div class="section">
+            <h2 class="section-title">Education</h2>
+            ${parsedSections.education.map((edu: any) => `
+              <div class="education-entry">
+                <div class="degree">${edu.degree || 'Degree'}</div>
+                <div class="institution">${edu.institution || 'Institution'}</div>
+                <div class="education-details">
+                  ${edu.year ? `${edu.year}` : ''}
+                  ${edu.gpa ? ` • GPA: ${edu.gpa}` : ''}
+                </div>
+                ${edu.honors && edu.honors.length > 0 ? `<div class="education-details">${edu.honors.join(', ')}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${parsedSections.certifications && parsedSections.certifications.length > 0 ? `
+          <!-- Certifications -->
+          <div class="section">
+            <h2 class="section-title">Certifications</h2>
+            ${parsedSections.certifications.map((cert: any) => {
+              if (typeof cert === 'string') {
+                return `
+                  <div class="cert-item">
+                    <div class="cert-name">${cert}</div>
+                  </div>
+                `;
+              }
+              return `
+                <div class="cert-item">
+                  <div class="cert-name">${cert.name || cert}</div>
+                  ${cert.issuer ? `<div class="cert-issuer">${cert.issuer}</div>` : ''}
+                  ${cert.date ? `<div class="cert-date">${cert.date}</div>` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+          ` : ''}
+        </td>
+      </tr>
+    </table>
 
     <!-- Footer -->
     <div class="footer">

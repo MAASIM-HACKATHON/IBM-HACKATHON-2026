@@ -7,6 +7,8 @@
 import { jsPDF } from 'jspdf';
 import type { ParsedResumeData } from '../types/resume.types';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 /**
  * Sanitize and validate data before PDF generation
  */
@@ -151,63 +153,16 @@ const DEFAULT_OPTIONS: Required<PDFGenerationOptions> = {
 };
 
 /**
- * Generate PDF blob from resume data
+ * Generate PDF blob from resume data (using jsPDF for preview)
  */
 export async function generateResumePDFBlob(
   data: ParsedResumeData,
   type: 'original' | 'optimized',
-  options: PDFGenerationOptions = {},
-  templateId: 'minimal' | 'professional' = 'minimal'
+  options: PDFGenerationOptions = {}
 ): Promise<Blob> {
   try {
-    // Try server-side HTML-to-PDF generation first
-    try {
-      const response = await fetch('/api/resume/generate-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          resumeData: data,
-          isOptimized: type === 'optimized',
-          templateId,
-        }),
-      });
-
-      if (response.ok) {
-        const htmlContent = await response.text();
-        
-        // Convert HTML to PDF using browser's print functionality
-        // Create a hidden iframe to render the HTML
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
-        
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (iframeDoc) {
-          iframeDoc.open();
-          iframeDoc.write(htmlContent);
-          iframeDoc.close();
-          
-          // Wait for content to load
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          // For now, return the HTML as a blob (browser will handle PDF conversion)
-          // In production, you'd use a proper HTML-to-PDF library or service
-          document.body.removeChild(iframe);
-          
-          // Return HTML blob for now - the browser's print dialog will convert to PDF
-          return new Blob([htmlContent], { type: 'text/html' });
-        }
-      }
-    } catch (serverError) {
-      console.warn('Server-side PDF generation failed, falling back to client-side:', serverError);
-    }
-    
-    // Fallback to client-side jsPDF generation
+    // For now, use client-side jsPDF generation for preview
+    // Server-side HTML templates will be used for download only
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
     
     // Sanitize data first to prevent formatting issues
@@ -230,6 +185,38 @@ export async function generateResumePDFBlob(
   } catch (error) {
     console.error('Error generating resume PDF:', error);
     throw new Error('Failed to generate PDF from resume data');
+  }
+}
+
+/**
+ * Generate HTML from server template (for download)
+ */
+export async function generateResumeHTML(
+  data: ParsedResumeData,
+  type: 'original' | 'optimized',
+  templateId: 'minimal' | 'professional' = 'minimal'
+): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/resume/generate-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        resumeData: data,
+        isOptimized: type === 'optimized',
+        templateId,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+
+    return await response.text();
+  } catch (error) {
+    console.error('Error generating HTML from server:', error);
+    throw new Error('Failed to generate HTML template');
   }
 }
 

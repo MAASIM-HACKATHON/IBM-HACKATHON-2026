@@ -4,6 +4,7 @@ import type { ParsedResumeData, ResumeGenerationResponse } from '../../../types/
 import PDFViewer from './PDFViewer';
 import {
   generateResumePDFBlob,
+  generateResumeHTML,
   createPDFBlobUrl,
   revokePDFBlobUrl,
   downloadPDFBlob,
@@ -78,7 +79,7 @@ function ResumePreview({
         rawText: generatedResume.generatedResume,
       };
 
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized', {}, selectedTemplate);
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
       const url = createPDFBlobUrl(blob);
       setOptimizedPdfUrl(url);
       toast.success('Optimized PDF generated');
@@ -104,6 +105,19 @@ function ResumePreview({
     }
   }, [originalResume, generatedResume, optimizedPdfUrl, isGeneratingOptimized, generateOptimizedPDF]);
 
+  // Regenerate PDFs when template changes
+  useEffect(() => {
+    if (originalResume && generatedResume && optimizedPdfUrl) {
+      // Clear existing PDF and regenerate
+      if (optimizedPdfUrl) {
+        revokePDFBlobUrl(optimizedPdfUrl);
+        setOptimizedPdfUrl(null);
+      }
+      // Trigger regeneration
+      generateOptimizedPDF();
+    }
+  }, [selectedTemplate]); // Only depend on selectedTemplate
+
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
@@ -121,10 +135,27 @@ function ResumePreview({
     if (!originalResume) return;
 
     try {
-      const blob = await generateResumePDFBlob(originalResume, 'original', {}, selectedTemplate);
-      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Original.pdf`;
-      downloadPDFBlob(blob, filename);
+      // Use server-side HTML template for download
+      const htmlContent = await generateResumeHTML(originalResume, 'original', selectedTemplate);
+      
+      // Open in new window for print-to-PDF
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Please allow popups to download PDF');
+        return;
+      }
+      
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Trigger print dialog
+      printWindow.print();
+      toast.success('Print dialog opened - save as PDF');
     } catch (error) {
+      console.error('Download error:', error);
       toast.error('Failed to download original PDF');
     }
   };
@@ -133,14 +164,33 @@ function ResumePreview({
     if (!originalResume) return;
 
     try {
+      // Create optimized data
       const optimizedData: ParsedResumeData = {
         ...originalResume,
         rawText: generatedResume.generatedResume,
       };
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized', {}, selectedTemplate);
-      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_ATS_Optimized.pdf`;
-      downloadPDFBlob(blob, filename);
+      
+      // Use server-side HTML template for download
+      const htmlContent = await generateResumeHTML(optimizedData, 'optimized', selectedTemplate);
+      
+      // Open in new window for print-to-PDF
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toast.error('Please allow popups to download PDF');
+        return;
+      }
+      
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      
+      // Wait for content to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Trigger print dialog
+      printWindow.print();
+      toast.success('Print dialog opened - save as PDF');
     } catch (error) {
+      console.error('Download error:', error);
       toast.error('Failed to download optimized PDF');
     }
   };
@@ -443,8 +493,7 @@ function ResumePreview({
 
           <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">
             <p className="text-xs text-blue-200 leading-relaxed">
-              💡 <strong>Tip:</strong> Use the zoom and navigation controls in the PDF viewer for better readability. 
-              The PDFs are professionally formatted and optimized for ATS systems.
+              💡 <strong>Download with {selectedTemplate === 'minimal' ? 'Minimal ATS' : 'Professional Modern'} template:</strong> Click download to open a print dialog where you can save as PDF with your selected template styling.
             </p>
           </div>
         </div>

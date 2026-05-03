@@ -66,6 +66,12 @@ function ActionHub({
               ? '✓ Single column, plain text, maximum ATS compatibility'
               : '✓ Two-column layout, professional design, modern styling'}
           </p>
+          <div className="mt-3 rounded-lg border border-blue-400/20 bg-blue-400/5 p-3">
+            <p className="text-xs text-blue-200 leading-relaxed">
+              💡 <strong>Note:</strong> Template styling applies when you download the PDF. 
+              The preview shows a simplified version for quick viewing.
+            </p>
+          </div>
         </div>
 
         {/* Generate ATS Resume */}

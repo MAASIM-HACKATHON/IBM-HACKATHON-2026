@@ -5,7 +5,7 @@
 
 import type { ParsedResumeData } from '../../types/resume.types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /**
  * Generate and download resume as PDF using server-side template
@@ -17,7 +17,7 @@ export async function downloadResumeAsPDF(
 ): Promise<void> {
   try {
     // Call server-side PDF template generator
-    const response = await fetch(`${API_BASE_URL}/api/resume/generate-pdf`, {
+    const response = await fetch(`${API_BASE_URL}/resume/generate-pdf`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
