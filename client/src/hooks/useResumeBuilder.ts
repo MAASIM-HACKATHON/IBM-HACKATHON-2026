@@ -21,6 +21,7 @@ import {
   extractJobKeywords,
   extractExperienceLevel,
   extractSkillsFromRawText,
+  extractTargetRole,
 } from '../services/resumeService';
 import { analyzeResume } from '../services/atsService';
 
@@ -31,6 +32,7 @@ interface UseResumeBuilderReturn extends ResumeBuilderState {
 
   // Job Description
   setJobDescription: (description: string) => void;
+  setJobTitle: (title: string) => void; // NEW
   analyzeJD: () => Promise<void>;
 
   // Resume Generation
@@ -218,6 +220,11 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
     setState(prev => ({ ...prev, jobDescription: description }));
   }, []);
 
+  // Set job title
+  const setJobTitle = useCallback((title: string) => {
+    setState(prev => ({ ...prev, jobTitle: title }));
+  }, []);
+
   // Analyze Job Description
   const analyzeJD = useCallback(async () => {
     if (!state.jobDescription.trim()) {
@@ -302,15 +309,21 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      // Use provided job title or extract from job description
+      const targetRole = state.jobTitle || extractTargetRole(state.jobDescription);
+      
       const response = await generateResume({
         profileData: state.parsedData,
         jobDescription: state.jobDescription,
         resumeType: 'ats-optimized',
+        targetRole: targetRole || undefined,
       });
 
       setState(prev => ({
         ...prev,
+        atsResume: response,
         generatedResume: response,
+        atsInsights: response.insights,
         loading: false,
         currentStep: 'results',
       }));
@@ -330,36 +343,67 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
 
       setState(prev => ({
         ...prev,
+        atsResume: fallbackResume,
         generatedResume: fallbackResume,
         loading: false,
         currentStep: 'results',
       }));
     }
-  }, [state.parsedData, state.jobDescription]);
+  }, [state.parsedData, state.jobDescription, state.jobTitle]);
 
   // Generate Full CV
   const generateFullCV = useCallback(async () => {
+    console.log('🔥 FRONTEND: generateFullCV called');
+    
     if (!state.parsedData) {
+      console.error('❌ FRONTEND: No parsed data available');
       setState(prev => ({ ...prev, error: 'No resume data available' }));
       return;
     }
 
+    console.log('📋 FRONTEND: Request details:', {
+      hasParsedData: !!state.parsedData,
+      hasJobDescription: !!state.jobDescription,
+      hasAtsInsights: !!state.atsInsights,
+      jobTitle: state.jobTitle || 'not provided'
+    });
+
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
+      // Use provided job title or extract from job description
+      const targetRole = state.jobTitle || extractTargetRole(state.jobDescription);
+      console.log('🎯 FRONTEND: Target role:', targetRole);
+      
+      console.log('🚀 FRONTEND: Calling generateResume API...');
       const response = await generateResume({
         profileData: state.parsedData,
         jobDescription: state.jobDescription,
         resumeType: 'full-cv',
+        targetRole: targetRole || undefined,
+        atsInsights: state.atsInsights,
       });
 
+      console.log('✅ FRONTEND: Received response from API');
+      console.log('   Response generatedResume length:', response.generatedResume.length);
+      console.log('   Response first 500 chars:', response.generatedResume.substring(0, 500));
+      console.log('   Response last 500 chars:', response.generatedResume.substring(Math.max(0, response.generatedResume.length - 500)));
+      console.log('   Response format:', response.format);
+      console.log('   Response suggestions:', response.suggestions);
+
+      console.log('💾 FRONTEND: Setting state with fullCV');
       setState(prev => ({
         ...prev,
+        fullCV: response,
         generatedResume: response,
         loading: false,
         currentStep: 'results',
       }));
+      
+      console.log('✅ FRONTEND: State updated successfully');
     } catch (error) {
+      console.error('❌ FRONTEND: Error generating CV:', error);
+      
       // Fallback to basic formatting if API fails
       const fallbackCV: ResumeGenerationResponse = {
         generatedResume: generateFallbackResume(state.parsedData, 'full-cv'),
@@ -373,14 +417,18 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         timestamp: new Date().toISOString(),
       };
 
+      console.log('⚠️  FRONTEND: Using fallback CV');
+      console.log('   Fallback CV length:', fallbackCV.generatedResume.length);
+
       setState(prev => ({
         ...prev,
+        fullCV: fallbackCV,
         generatedResume: fallbackCV,
         loading: false,
         currentStep: 'results',
       }));
     }
-  }, [state.parsedData, state.jobDescription]);
+  }, [state.parsedData, state.jobDescription, state.jobTitle, state.atsInsights]);
 
   // Run ATS Analysis
   const runATSAnalysis = useCallback(async () => {
@@ -511,6 +559,7 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
     handleFileUpload,
     clearFile,
     setJobDescription,
+    setJobTitle, // NEW
     analyzeJD,
     generateATSResume,
     generateFullCV,

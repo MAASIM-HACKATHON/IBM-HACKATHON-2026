@@ -1,4 +1,4 @@
-import { type ReactElement, useState, useEffect, useCallback } from 'react';
+import { type ReactElement, useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import type { ParsedResumeData, ResumeGenerationResponse } from '../../../types/resume.types';
 import PDFViewer from './PDFViewer';
@@ -12,26 +12,67 @@ import {
 
 interface ResumePreviewProps {
   originalResume?: ParsedResumeData;
-  generatedResume: ResumeGenerationResponse;
-  viewMode: 'split' | 'original' | 'optimized';
-  onViewModeChange: (mode: 'split' | 'original' | 'optimized') => void;
+  generatedResume: ResumeGenerationResponse; // Keep for backward compatibility
+  atsResume?: ResumeGenerationResponse; // ATS-Optimized Resume
+  fullCV?: ResumeGenerationResponse; // Full CV
+  viewMode: 'split' | 'original' | 'ats' | 'cv';
+  onViewModeChange: (mode: 'split' | 'original' | 'ats' | 'cv') => void;
   uploadedFile?: File; // Original uploaded PDF file
 }
 
 function ResumePreview({
   originalResume,
   generatedResume,
+  atsResume,
+  fullCV,
   viewMode,
   onViewModeChange,
   uploadedFile,
 }: ResumePreviewProps): ReactElement {
   // PDF state management
   const [originalPdfUrl, setOriginalPdfUrl] = useState<string | null>(null);
-  const [optimizedPdfUrl, setOptimizedPdfUrl] = useState<string | null>(null);
+  const [atsPdfUrl, setAtsPdfUrl] = useState<string | null>(null);
+  const [cvPdfUrl, setCvPdfUrl] = useState<string | null>(null);
   const [isGeneratingOriginal, setIsGeneratingOriginal] = useState(false);
-  const [isGeneratingOptimized, setIsGeneratingOptimized] = useState(false);
+  const [isGeneratingAts, setIsGeneratingAts] = useState(false);
+  const [isGeneratingCv, setIsGeneratingCv] = useState(false);
   const [originalError, setOriginalError] = useState<string | null>(null);
-  const [optimizedError, setOptimizedError] = useState<string | null>(null);
+  const [atsError, setAtsError] = useState<string | null>(null);
+  const [cvError, setCvError] = useState<string | null>(null);
+
+  // Track previous content to detect changes
+  const prevAtsContentRef = useRef<string | null>(null);
+  const prevCvContentRef = useRef<string | null>(null);
+
+  // Determine which resume to show based on view mode
+  let displayedResume: ResumeGenerationResponse | undefined;
+  let resumeType: 'ats' | 'cv' = 'ats';
+
+  if (viewMode === 'ats' && atsResume) {
+    displayedResume = atsResume;
+    resumeType = 'ats';
+  } else if (viewMode === 'cv' && fullCV) {
+    displayedResume = fullCV;
+    resumeType = 'cv';
+  } else if (viewMode === 'split') {
+    // In split view, show the most recently generated on the right
+    displayedResume = fullCV || atsResume || generatedResume;
+    resumeType = fullCV ? 'cv' : 'ats';
+  } else {
+    // Fallback: show whatever is available
+    displayedResume = atsResume || fullCV || generatedResume;
+    resumeType = atsResume ? 'ats' : fullCV ? 'cv' : 'ats';
+  }
+
+  // 🔥 DEBUG: Log what's being displayed
+  console.log('🔥 RESUME PREVIEW: Determining which resume to display');
+  console.log('   View mode:', viewMode);
+  console.log('   Has atsResume:', !!atsResume);
+  console.log('   Has fullCV:', !!fullCV);
+  console.log('   Has generatedResume:', !!generatedResume);
+  console.log('   Displaying:', resumeType);
+  console.log('   Content length:', displayedResume?.generatedResume?.length || 0);
+  console.log('   Content preview:', displayedResume?.generatedResume?.substring(0, 200));
 
   // Generate original PDF
   const generateOriginalPDF = useCallback(async () => {
@@ -62,32 +103,101 @@ function ResumePreview({
     }
   }, [originalResume, uploadedFile]);
 
-  // Generate optimized PDF
-  const generateOptimizedPDF = useCallback(async () => {
-    if (!originalResume) return;
+  // Generate ATS PDF
+  const generateAtsPDF = useCallback(async () => {
+    if (!originalResume || !atsResume) return;
+
+    console.log('🔥 PDF GENERATION: generateAtsPDF called');
+    console.log('   atsResume.generatedResume length:', atsResume.generatedResume.length);
+    console.log('   atsResume.generatedResume first 500 chars:', atsResume.generatedResume.substring(0, 500));
 
     try {
-      setIsGeneratingOptimized(true);
-      setOptimizedError(null);
+      setIsGeneratingAts(true);
+      setAtsError(null);
 
-      // Create a temporary ParsedResumeData with optimized content
-      const optimizedData: ParsedResumeData = {
+      // Store old URL to revoke after new one is set
+      const oldUrl = atsPdfUrl;
+
+      const atsData: ParsedResumeData = {
         ...originalResume,
-        rawText: generatedResume.generatedResume,
+        rawText: atsResume.generatedResume,
       };
 
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      console.log('🔥 PDF GENERATION: Creating ATS PDF blob...');
+      const blob = await generateResumePDFBlob(atsData, 'optimized');
+      console.log('   Blob size:', blob.size, 'bytes');
+      
       const url = createPDFBlobUrl(blob);
-      setOptimizedPdfUrl(url);
-      toast.success('Optimized PDF generated');
+      console.log('   Blob URL created:', url);
+      
+      setAtsPdfUrl(url);
+      
+      // Revoke old URL after new one is set
+      if (oldUrl) {
+        setTimeout(() => {
+          console.log('🔥 PDF GENERATION: Revoking old ATS URL:', oldUrl);
+          revokePDFBlobUrl(oldUrl);
+        }, 100);
+      }
+      
+      toast.success('ATS Resume PDF generated');
+      console.log('✅ PDF GENERATION: ATS PDF generated successfully');
     } catch (error) {
-      console.error('Error generating optimized PDF:', error);
-      setOptimizedError('Failed to generate optimized PDF');
-      toast.error('Failed to generate optimized PDF');
+      console.error('❌ PDF GENERATION: Error generating ATS PDF:', error);
+      setAtsError('Failed to generate ATS PDF');
+      toast.error('Failed to generate ATS PDF');
     } finally {
-      setIsGeneratingOptimized(false);
+      setIsGeneratingAts(false);
     }
-  }, [originalResume, generatedResume]);
+  }, [originalResume, atsResume, atsPdfUrl]);
+
+  // Generate CV PDF
+  const generateCvPDF = useCallback(async () => {
+    if (!originalResume || !fullCV) return;
+
+    console.log('🔥 PDF GENERATION: generateCvPDF called');
+    console.log('   fullCV.generatedResume length:', fullCV.generatedResume.length);
+    console.log('   fullCV.generatedResume first 500 chars:', fullCV.generatedResume.substring(0, 500));
+
+    try {
+      setIsGeneratingCv(true);
+      setCvError(null);
+
+      // Store old URL to revoke after new one is set
+      const oldUrl = cvPdfUrl;
+
+      const cvData: ParsedResumeData = {
+        ...originalResume,
+        rawText: fullCV.generatedResume,
+      };
+
+      console.log('🔥 PDF GENERATION: Creating PDF blob...');
+      const blob = await generateResumePDFBlob(cvData, 'optimized');
+      console.log('   Blob size:', blob.size, 'bytes');
+      
+      const url = createPDFBlobUrl(blob);
+      console.log('   Blob URL created:', url);
+      
+      setCvPdfUrl(url);
+      
+      // Revoke old URL after new one is set
+      if (oldUrl) {
+        setTimeout(() => {
+          console.log('🔥 PDF GENERATION: Revoking old URL:', oldUrl);
+          revokePDFBlobUrl(oldUrl);
+        }, 100);
+      }
+      
+      toast.success('Full CV PDF generated');
+      console.log('✅ PDF GENERATION: CV PDF generated successfully');
+    } catch (error) {
+      console.error('❌ PDF GENERATION: Error generating CV PDF:', error);
+      setCvError('Failed to generate CV PDF');
+      toast.error('Failed to generate CV PDF');
+    } finally {
+      setIsGeneratingCv(false);
+    }
+  }, [originalResume, fullCV, cvPdfUrl]);
 
   // Generate PDFs on mount or data change
   useEffect(() => {
@@ -96,11 +206,45 @@ function ResumePreview({
     }
   }, [originalResume, originalPdfUrl, isGeneratingOriginal, generateOriginalPDF]);
 
+  // Regenerate ATS PDF when atsResume content changes (only if no PDF exists or content changed)
   useEffect(() => {
-    if (originalResume && generatedResume && !optimizedPdfUrl && !isGeneratingOptimized) {
-      generateOptimizedPDF();
+    const currentContent = atsResume?.generatedResume;
+    const hasContentChanged = currentContent && currentContent !== prevAtsContentRef.current;
+    
+    if (originalResume && atsResume && !isGeneratingAts) {
+      // Generate if no PDF exists OR content has changed
+      if (!atsPdfUrl || hasContentChanged) {
+        console.log('🔥 useEffect: Generating ATS PDF', {
+          noPdfExists: !atsPdfUrl,
+          contentChanged: hasContentChanged,
+          prevLength: prevAtsContentRef.current?.length || 0,
+          currentLength: currentContent?.length || 0
+        });
+        generateAtsPDF();
+        prevAtsContentRef.current = currentContent || null;
+      }
     }
-  }, [originalResume, generatedResume, optimizedPdfUrl, isGeneratingOptimized, generateOptimizedPDF]);
+  }, [originalResume, atsResume?.generatedResume, atsPdfUrl, isGeneratingAts]); // Watch for content changes
+
+  // Regenerate CV PDF when fullCV content changes (only if no PDF exists or content changed)
+  useEffect(() => {
+    const currentContent = fullCV?.generatedResume;
+    const hasContentChanged = currentContent && currentContent !== prevCvContentRef.current;
+    
+    if (originalResume && fullCV && !isGeneratingCv) {
+      // Generate if no PDF exists OR content has changed
+      if (!cvPdfUrl || hasContentChanged) {
+        console.log('🔥 useEffect: Generating CV PDF', {
+          noPdfExists: !cvPdfUrl,
+          contentChanged: hasContentChanged,
+          prevLength: prevCvContentRef.current?.length || 0,
+          currentLength: currentContent?.length || 0
+        });
+        generateCvPDF();
+        prevCvContentRef.current = currentContent || null;
+      }
+    }
+  }, [originalResume, fullCV?.generatedResume, cvPdfUrl, isGeneratingCv]); // Watch for content changes
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -108,11 +252,14 @@ function ResumePreview({
       if (originalPdfUrl) {
         revokePDFBlobUrl(originalPdfUrl);
       }
-      if (optimizedPdfUrl) {
-        revokePDFBlobUrl(optimizedPdfUrl);
+      if (atsPdfUrl) {
+        revokePDFBlobUrl(atsPdfUrl);
+      }
+      if (cvPdfUrl) {
+        revokePDFBlobUrl(cvPdfUrl);
       }
     };
-  }, [originalPdfUrl, optimizedPdfUrl]);
+  }, [originalPdfUrl, atsPdfUrl, cvPdfUrl]);
 
   // Download handlers
   const handleDownloadOriginal = async () => {
@@ -127,19 +274,35 @@ function ResumePreview({
     }
   };
 
-  const handleDownloadOptimized = async () => {
-    if (!originalResume) return;
+  const handleDownloadAts = async () => {
+    if (!originalResume || !atsResume) return;
 
     try {
-      const optimizedData: ParsedResumeData = {
+      const atsData: ParsedResumeData = {
         ...originalResume,
-        rawText: generatedResume.generatedResume,
+        rawText: atsResume.generatedResume,
       };
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      const blob = await generateResumePDFBlob(atsData, 'optimized');
       const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_ATS_Optimized.pdf`;
       downloadPDFBlob(blob, filename);
     } catch (error) {
-      toast.error('Failed to download optimized PDF');
+      toast.error('Failed to download ATS PDF');
+    }
+  };
+
+  const handleDownloadCv = async () => {
+    if (!originalResume || !fullCV) return;
+
+    try {
+      const cvData: ParsedResumeData = {
+        ...originalResume,
+        rawText: fullCV.generatedResume,
+      };
+      const blob = await generateResumePDFBlob(cvData, 'optimized');
+      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Full_CV.pdf`;
+      downloadPDFBlob(blob, filename);
+    } catch (error) {
+      toast.error('Failed to download CV PDF');
     }
   };
 
@@ -184,23 +347,38 @@ function ResumePreview({
             >
               Original
             </button>
-            <button
-              onClick={() => onViewModeChange('optimized')}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                viewMode === 'optimized'
-                  ? 'bg-purple-400 text-slate-950'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              type="button"
-            >
-              Optimized
-            </button>
+            {atsResume && (
+              <button
+                onClick={() => onViewModeChange('ats')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  viewMode === 'ats'
+                    ? 'bg-purple-400 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                type="button"
+              >
+                ATS Resume
+              </button>
+            )}
+            {fullCV && (
+              <button
+                onClick={() => onViewModeChange('cv')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  viewMode === 'cv'
+                    ? 'bg-purple-400 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                type="button"
+              >
+                Full CV
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="p-6">
-        {/* Split View */}
+        {/* Split View - Show Original vs Latest Generated (ATS or CV) */}
         {viewMode === 'split' && (
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Original PDF */}
@@ -244,43 +422,81 @@ function ResumePreview({
               )}
             </div>
 
-            {/* Optimized PDF */}
+            {/* Latest Generated (ATS or CV) */}
             <div className="space-y-3">
-              {isGeneratingOptimized ? (
-                <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                  <div className="text-center">
-                    <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent"></div>
-                    <p className="text-sm text-slate-400">Generating optimized PDF...</p>
+              {resumeType === 'ats' && atsResume ? (
+                isGeneratingAts ? (
+                  <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                    <div className="text-center">
+                      <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent"></div>
+                      <p className="text-sm text-slate-400">Generating ATS Resume PDF...</p>
+                    </div>
                   </div>
-                </div>
-              ) : optimizedError ? (
-                <div className="flex h-[700px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
-                  <div className="text-center">
-                    <p className="mb-2 text-sm text-red-300">{optimizedError}</p>
-                    <button
-                      onClick={generateOptimizedPDF}
-                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
-                      type="button"
-                    >
-                      Retry
-                    </button>
+                ) : atsError ? (
+                  <div className="flex h-[700px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                    <div className="text-center">
+                      <p className="mb-2 text-sm text-red-300">{atsError}</p>
+                      <button
+                        onClick={generateAtsPDF}
+                        className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                        type="button"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : optimizedPdfUrl ? (
-                <PDFViewer
-                  pdfUrl={optimizedPdfUrl}
-                  title="Optimized Resume"
-                  subtitle="ATS-optimized version"
-                  badge={{ text: 'After', color: 'emerald' }}
-                  height="800px"
-                  onLoadError={(error) => {
-                    console.error('Optimized PDF load error:', error);
-                    setOptimizedError(error.message);
-                  }}
-                />
+                ) : atsPdfUrl ? (
+                  <PDFViewer
+                    key={`split-ats-${atsPdfUrl}`}
+                    pdfUrl={atsPdfUrl}
+                    title="ATS-Optimized Resume"
+                    subtitle="Optimized for applicant tracking systems"
+                    badge={{ text: 'ATS-Optimized', color: 'emerald' }}
+                    height="800px"
+                    onLoadError={(error) => {
+                      console.error('ATS PDF load error:', error);
+                      setAtsError(error.message);
+                    }}
+                  />
+                ) : null
+              ) : resumeType === 'cv' && fullCV ? (
+                isGeneratingCv ? (
+                  <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                    <div className="text-center">
+                      <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
+                      <p className="text-sm text-slate-400">Generating Full CV PDF...</p>
+                    </div>
+                  </div>
+                ) : cvError ? (
+                  <div className="flex h-[700px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                    <div className="text-center">
+                      <p className="mb-2 text-sm text-red-300">{cvError}</p>
+                      <button
+                        onClick={generateCvPDF}
+                        className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                        type="button"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                ) : cvPdfUrl ? (
+                  <PDFViewer
+                    key={`split-cv-${cvPdfUrl}`}
+                    pdfUrl={cvPdfUrl}
+                    title="Full CV"
+                    subtitle="Comprehensive curriculum vitae"
+                    badge={{ text: 'Full CV', color: 'purple' }}
+                    height="800px"
+                    onLoadError={(error) => {
+                      console.error('CV PDF load error:', error);
+                      setCvError(error.message);
+                    }}
+                  />
+                ) : null
               ) : (
                 <div className="flex h-[700px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                  <p className="text-sm text-slate-400">No optimized resume available</p>
+                  <p className="text-sm text-slate-400">No generated resume available</p>
                 </div>
               )}
             </div>
@@ -330,22 +546,22 @@ function ResumePreview({
           </div>
         )}
 
-        {/* Optimized Only */}
-        {viewMode === 'optimized' && (
+        {/* ATS Resume Only */}
+        {viewMode === 'ats' && atsResume && (
           <div className="space-y-3">
-            {isGeneratingOptimized ? (
+            {isGeneratingAts ? (
               <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
                 <div className="text-center">
                   <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-400 border-t-transparent"></div>
-                  <p className="text-sm text-slate-400">Generating optimized PDF...</p>
+                  <p className="text-sm text-slate-400">Generating ATS Resume PDF...</p>
                 </div>
               </div>
-            ) : optimizedError ? (
+            ) : atsError ? (
               <div className="flex h-[800px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
                 <div className="text-center">
-                  <p className="mb-2 text-sm text-red-300">{optimizedError}</p>
+                  <p className="mb-2 text-sm text-red-300">{atsError}</p>
                   <button
-                    onClick={generateOptimizedPDF}
+                    onClick={generateAtsPDF}
                     className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
                     type="button"
                   >
@@ -353,28 +569,73 @@ function ResumePreview({
                   </button>
                 </div>
               </div>
-            ) : optimizedPdfUrl ? (
+            ) : atsPdfUrl ? (
               <PDFViewer
-                pdfUrl={optimizedPdfUrl}
-                title="Optimized Resume"
-                subtitle="ATS-optimized version"
+                key={`ats-pdf-${atsPdfUrl}`}
+                pdfUrl={atsPdfUrl}
+                title="ATS-Optimized Resume"
+                subtitle="Optimized for applicant tracking systems"
                 badge={{ text: 'ATS-Optimized', color: 'emerald' }}
                 height="800px"
                 onLoadError={(error) => {
-                  console.error('Optimized PDF load error:', error);
-                  setOptimizedError(error.message);
+                  console.error('ATS PDF load error:', error);
+                  setAtsError(error.message);
                 }}
               />
             ) : (
               <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                <p className="text-sm text-slate-400">No optimized resume available</p>
+                <p className="text-sm text-slate-400">No ATS resume available</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Full CV Only */}
+        {viewMode === 'cv' && fullCV && (
+          <div className="space-y-3">
+            {isGeneratingCv ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
+                  <p className="text-sm text-slate-400">Generating Full CV PDF...</p>
+                </div>
+              </div>
+            ) : cvError ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                <div className="text-center">
+                  <p className="mb-2 text-sm text-red-300">{cvError}</p>
+                  <button
+                    onClick={generateCvPDF}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : cvPdfUrl ? (
+              <PDFViewer
+                key={`cv-pdf-${cvPdfUrl}`}
+                pdfUrl={cvPdfUrl}
+                title="Full CV"
+                subtitle="Comprehensive curriculum vitae"
+                badge={{ text: 'Full CV', color: 'purple' }}
+                height="800px"
+                onLoadError={(error) => {
+                  console.error('CV PDF load error:', error);
+                  setCvError(error.message);
+                }}
+              />
+            ) : (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <p className="text-sm text-slate-400">No Full CV available</p>
               </div>
             )}
           </div>
         )}
 
         {/* AI Suggestions */}
-        {generatedResume.suggestions.length > 0 && (
+        {displayedResume.suggestions.length > 0 && (
           <div className="mt-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4">
             <h3 className="text-sm font-semibold text-cyan-100 mb-3">AI Suggestions</h3>
             <ul className="space-y-2">
@@ -391,7 +652,7 @@ function ResumePreview({
         )}
 
         {/* Weak Sections Alert */}
-        {generatedResume.weakSections.length > 0 && (
+        {displayedResume.weakSections.length > 0 && (
           <div className="mt-4 rounded-xl border border-yellow-400/30 bg-yellow-400/10 p-4">
             <h3 className="text-sm font-semibold text-yellow-100 mb-3">⚠ Weak Sections</h3>
             <ul className="space-y-2">
@@ -409,7 +670,7 @@ function ResumePreview({
 
         {/* Download Actions */}
         <div className="mt-6 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={handleDownloadOriginal}
               disabled={!originalPdfUrl || isGeneratingOriginal}
@@ -420,23 +681,41 @@ function ResumePreview({
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Download Original PDF
+                Download Original
               </span>
             </button>
 
-            <button
-              onClick={handleDownloadOptimized}
-              disabled={!optimizedPdfUrl || isGeneratingOptimized}
-              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              type="button"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download Optimized PDF
-              </span>
-            </button>
+            {atsResume && (
+              <button
+                onClick={handleDownloadAts}
+                disabled={!atsPdfUrl || isGeneratingAts}
+                className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download ATS Resume
+                </span>
+              </button>
+            )}
+
+            {fullCV && (
+              <button
+                onClick={handleDownloadCv}
+                disabled={!cvPdfUrl || isGeneratingCv}
+                className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Full CV
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">
