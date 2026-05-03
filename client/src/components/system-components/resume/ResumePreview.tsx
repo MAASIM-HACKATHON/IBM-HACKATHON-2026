@@ -76,7 +76,10 @@ function ResumePreview({
         rawText: generatedResume.generatedResume,
       };
 
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      console.log('🔥 PDF GENERATION: Creating CV PDF blob with CV formatter...');
+      const blob = await generateResumePDFBlob(cvData, 'cv'); // Changed from 'optimized' to 'cv'
+      console.log('   Blob size:', blob.size, 'bytes');
+      
       const url = createPDFBlobUrl(blob);
       setOptimizedPdfUrl(url);
       toast.success('Optimized PDF generated');
@@ -139,7 +142,23 @@ function ResumePreview({
       const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_ATS_Optimized.pdf`;
       downloadPDFBlob(blob, filename);
     } catch (error) {
-      toast.error('Failed to download optimized PDF');
+      toast.error('Failed to download ATS PDF');
+    }
+  };
+
+  const handleDownloadCv = async () => {
+    if (!originalResume || !fullCV) return;
+
+    try {
+      const cvData: ParsedResumeData = {
+        ...originalResume,
+        rawText: fullCV.generatedResume,
+      };
+      const blob = await generateResumePDFBlob(cvData, 'cv'); // Changed from 'optimized' to 'cv'
+      const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Full_CV.pdf`;
+      downloadPDFBlob(blob, filename);
+    } catch (error) {
+      toast.error('Failed to download CV PDF');
     }
   };
 

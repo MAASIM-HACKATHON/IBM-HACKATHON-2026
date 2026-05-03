@@ -155,7 +155,7 @@ const DEFAULT_OPTIONS: Required<PDFGenerationOptions> = {
  */
 export async function generateResumePDFBlob(
   data: ParsedResumeData,
-  type: 'original' | 'optimized',
+  type: 'original' | 'optimized' | 'cv',
   options: PDFGenerationOptions = {}
 ): Promise<Blob> {
   try {
@@ -164,17 +164,25 @@ export async function generateResumePDFBlob(
     // Sanitize data first to prevent formatting issues
     const sanitizedData = sanitizeResumeData(data);
     
-    // Format resume content
-    const content = formatResumeContent(sanitizedData);
+    // Format resume content - use different formatter for CV
+    const content = type === 'cv' 
+      ? formatCVContent(sanitizedData)
+      : formatResumeContent(sanitizedData);
     
     // Create metadata
     const metadata: PDFMetadata = {
-      title: `${data.parsedSections.personalInfo?.name || 'Resume'} - ${type === 'original' ? 'Original' : 'ATS Optimized'}`,
+      title: `${data.parsedSections.personalInfo?.name || 'Resume'} - ${type === 'original' ? 'Original' : type === 'cv' ? 'Full CV' : 'ATS Optimized'}`,
       author: data.parsedSections.personalInfo?.name || 'Unknown',
-      subject: 'Professional Resume',
+      subject: type === 'cv' ? 'Curriculum Vitae' : 'Professional Resume',
       keywords: data.parsedSections.skills || [],
       creator: 'IBM Watsonx Resume Builder',
     };
+    
+    // Use different options for CV (more spacing)
+    if (type === 'cv') {
+      mergedOptions.lineHeight = 1.6; // Increased line height for CV
+      mergedOptions.fontSize = 10.5; // Slightly larger font
+    }
     
     // Generate PDF
     return await textToPDFBlob(content, metadata, mergedOptions);
@@ -403,6 +411,149 @@ function formatResumeContent(data: ParsedResumeData): string {
     console.error('Error formatting resume content:', error);
     // Return a safe fallback
     return 'Error generating resume content. Please try again.';
+  }
+}
+
+/**
+ * Format CV content for PDF display - NARRATIVE STYLE
+ * Uses paragraphs instead of bullets, expanded descriptions
+ */
+function formatCVContent(data: ParsedResumeData): string {
+  const { parsedSections } = data;
+  let content = '';
+  
+  try {
+    // Header - Personal Info (Expanded format)
+    if (parsedSections.personalInfo) {
+      const info = parsedSections.personalInfo;
+      const name = sanitizeText(info.name || 'YOUR NAME');
+      content += `${name.toUpperCase()}\n`;
+      content += 'Curriculum Vitae\n\n';
+      
+      content += 'Contact Information\n';
+      if (info.location) content += `${sanitizeText(info.location)}\n`;
+      if (info.email) content += `Email: ${sanitizeText(info.email)}\n`;
+      if (info.phone) content += `Phone: ${sanitizeText(info.phone)}\n`;
+      if (info.linkedin) content += `LinkedIn: ${sanitizeText(info.linkedin)}\n`;
+      if (info.github) content += `GitHub: ${sanitizeText(info.github)}\n`;
+      content += '\n\n';
+    }
+    
+    // Professional Profile (Narrative paragraph)
+    if (parsedSections.summary) {
+      content += 'PROFESSIONAL PROFILE\n\n';
+      content += `${sanitizeText(parsedSections.summary)}\n\n\n`;
+    }
+  
+    // Technical Expertise (Narrative description)
+    if (parsedSections.skills.length > 0) {
+      content += 'TECHNICAL EXPERTISE AND SPECIALIZATIONS\n\n';
+      content += 'My technical proficiency encompasses a comprehensive range of modern technologies and methodologies. ';
+      content += `I have developed expertise in ${parsedSections.skills.slice(0, 5).join(', ')}`;
+      if (parsedSections.skills.length > 5) {
+        content += `, and ${parsedSections.skills.slice(5).join(', ')}`;
+      }
+      content += '. This diverse skill set enables me to approach complex technical challenges from multiple perspectives and deliver robust, scalable solutions.\n\n\n';
+    }
+  
+    // Professional Experience (Narrative paragraphs - NO BULLETS)
+    if (parsedSections.workExperience.length > 0) {
+      content += 'PROFESSIONAL EXPERIENCE AND ACHIEVEMENTS\n\n';
+    
+      parsedSections.workExperience.forEach((exp, index) => {
+        content += `${sanitizeText(exp.company || 'Company')} - ${sanitizeText(exp.title || 'Position')}\n`;
+        content += `${sanitizeText(exp.duration || 'Duration')}\n\n`;
+      
+        if (exp.description) {
+          content += `${sanitizeText(exp.description)}\n\n`;
+        }
+      
+        if (exp.achievements && Array.isArray(exp.achievements) && exp.achievements.length > 0) {
+          // Convert bullets to narrative paragraphs
+          exp.achievements.forEach(achievement => {
+            if (achievement) {
+              const sanitized = sanitizeText(achievement);
+              // Remove bullet points and convert to paragraph
+              const cleaned = sanitized.replace(/^[•\-\*]\s*/, '');
+              content += `${cleaned} `;
+            }
+          });
+          content += '\n\n';
+        }
+      
+        if (exp.skills && Array.isArray(exp.skills) && exp.skills.length > 0) {
+          const sanitizedSkills = exp.skills.filter(s => s).map(s => sanitizeText(s));
+          if (sanitizedSkills.length > 0) {
+            content += `Throughout this role, I utilized ${sanitizedSkills.join(', ')} to deliver impactful solutions that addressed critical business needs.\n\n`;
+          }
+        }
+      
+        if (index < parsedSections.workExperience.length - 1) {
+          content += '\n';
+        }
+      });
+      content += '\n';
+    }
+  
+    // Projects (Narrative format)
+    if (parsedSections.projects.length > 0) {
+      content += 'NOTABLE TECHNICAL PROJECTS\n\n';
+    
+      parsedSections.projects.forEach((project, index) => {
+        content += `${sanitizeText(project.name || 'Project')}\n\n`;
+        content += `${sanitizeText(project.description || '')} `;
+      
+        if (project.technologies && Array.isArray(project.technologies) && project.technologies.length > 0) {
+          const sanitizedTech = project.technologies.filter(t => t).map(t => sanitizeText(t));
+          if (sanitizedTech.length > 0) {
+            content += `The project leverages ${sanitizedTech.join(', ')} to create a comprehensive solution that demonstrates my ability to integrate multiple technologies effectively.`;
+          }
+        }
+        content += '\n\n';
+      
+        if (index < parsedSections.projects.length - 1) {
+          content += '\n';
+        }
+      });
+      content += '\n';
+    }
+  
+    // Education (Expanded narrative)
+    if (parsedSections.education.length > 0) {
+      content += 'EDUCATIONAL BACKGROUND\n\n';
+    
+      parsedSections.education.forEach(edu => {
+        const institution = sanitizeText(edu.institution || 'Institution');
+        const degree = sanitizeText(edu.degree || 'Degree');
+        const field = edu.field ? ` in ${sanitizeText(edu.field)}` : '';
+        const year = edu.year ? ` (Graduated ${sanitizeText(edu.year)})` : '';
+      
+        content += `${institution}\n`;
+        content += `${degree}${field}${year}\n`;
+      
+        if (edu.gpa) content += `Academic Achievement: ${sanitizeText(edu.gpa)}\n`;
+      
+        content += '\nMy education provided a strong theoretical foundation that continues to inform my professional practice. The rigorous curriculum and collaborative environment shaped my approach to problem-solving and technical innovation.\n\n';
+      });
+    }
+  
+    // Certifications (Narrative format)
+    if (parsedSections.certifications && parsedSections.certifications.length > 0) {
+      content += 'PROFESSIONAL CERTIFICATIONS\n\n';
+    
+      parsedSections.certifications.forEach(cert => {
+        if (cert && typeof cert === 'string') {
+          const sanitized = sanitizeText(cert);
+          content += `${sanitized}\n`;
+          content += 'This certification validates my expertise and commitment to maintaining current knowledge in rapidly evolving technology domains.\n\n';
+        }
+      });
+    }
+  
+    return content;
+  } catch (error) {
+    console.error('Error formatting CV content:', error);
+    return 'Error generating CV content. Please try again.';
   }
 }
 
