@@ -13,14 +13,16 @@ import {
 interface ResumePreviewProps {
   originalResume?: ParsedResumeData;
   generatedResume: ResumeGenerationResponse;
-  viewMode: 'split' | 'original' | 'optimized';
-  onViewModeChange: (mode: 'split' | 'original' | 'optimized') => void;
+  fullCV?: ResumeGenerationResponse; // Add fullCV prop
+  viewMode: 'split' | 'original' | 'optimized' | 'cv';
+  onViewModeChange: (mode: 'split' | 'original' | 'optimized' | 'cv') => void;
   uploadedFile?: File; // Original uploaded PDF file
 }
 
 function ResumePreview({
   originalResume,
   generatedResume,
+  fullCV,
   viewMode,
   onViewModeChange,
   uploadedFile,
@@ -28,10 +30,13 @@ function ResumePreview({
   // PDF state management
   const [originalPdfUrl, setOriginalPdfUrl] = useState<string | null>(null);
   const [optimizedPdfUrl, setOptimizedPdfUrl] = useState<string | null>(null);
+  const [cvPdfUrl, setCvPdfUrl] = useState<string | null>(null);
   const [isGeneratingOriginal, setIsGeneratingOriginal] = useState(false);
   const [isGeneratingOptimized, setIsGeneratingOptimized] = useState(false);
+  const [isGeneratingCV, setIsGeneratingCV] = useState(false);
   const [originalError, setOriginalError] = useState<string | null>(null);
   const [optimizedError, setOptimizedError] = useState<string | null>(null);
+  const [cvError, setCvError] = useState<string | null>(null);
 
   // Generate original PDF
   const generateOriginalPDF = useCallback(async () => {
@@ -64,7 +69,7 @@ function ResumePreview({
 
   // Generate optimized PDF
   const generateOptimizedPDF = useCallback(async () => {
-    if (!originalResume) return;
+    if (!originalResume || !generatedResume) return;
 
     try {
       setIsGeneratingOptimized(true);
@@ -76,8 +81,8 @@ function ResumePreview({
         rawText: generatedResume.generatedResume,
       };
 
-      console.log('🔥 PDF GENERATION: Creating CV PDF blob with CV formatter...');
-      const blob = await generateResumePDFBlob(cvData, 'cv'); // Changed from 'optimized' to 'cv'
+      console.log('🔥 PDF GENERATION: Creating optimized PDF blob...');
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
       console.log('   Blob size:', blob.size, 'bytes');
       
       const url = createPDFBlobUrl(blob);
@@ -92,6 +97,36 @@ function ResumePreview({
     }
   }, [originalResume, generatedResume]);
 
+  // Generate CV PDF
+  const generateCVPDF = useCallback(async () => {
+    if (!originalResume || !fullCV) return;
+
+    try {
+      setIsGeneratingCV(true);
+      setCvError(null);
+
+      // Create a temporary ParsedResumeData with CV content
+      const cvData: ParsedResumeData = {
+        ...originalResume,
+        rawText: fullCV.generatedResume,
+      };
+
+      console.log('🔥 PDF GENERATION: Creating CV PDF blob...');
+      const blob = await generateResumePDFBlob(cvData, 'cv');
+      console.log('   Blob size:', blob.size, 'bytes');
+      
+      const url = createPDFBlobUrl(blob);
+      setCvPdfUrl(url);
+      toast.success('CV PDF generated');
+    } catch (error) {
+      console.error('Error generating CV PDF:', error);
+      setCvError('Failed to generate CV PDF');
+      toast.error('Failed to generate CV PDF');
+    } finally {
+      setIsGeneratingCV(false);
+    }
+  }, [originalResume, fullCV]);
+
   // Generate PDFs on mount or data change
   useEffect(() => {
     if (originalResume && !originalPdfUrl && !isGeneratingOriginal) {
@@ -105,6 +140,12 @@ function ResumePreview({
     }
   }, [originalResume, generatedResume, optimizedPdfUrl, isGeneratingOptimized, generateOptimizedPDF]);
 
+  useEffect(() => {
+    if (originalResume && fullCV && !cvPdfUrl && !isGeneratingCV) {
+      generateCVPDF();
+    }
+  }, [originalResume, fullCV, cvPdfUrl, isGeneratingCV, generateCVPDF]);
+
   // Cleanup blob URLs on unmount
   useEffect(() => {
     return () => {
@@ -114,8 +155,11 @@ function ResumePreview({
       if (optimizedPdfUrl) {
         revokePDFBlobUrl(optimizedPdfUrl);
       }
+      if (cvPdfUrl) {
+        revokePDFBlobUrl(cvPdfUrl);
+      }
     };
-  }, [originalPdfUrl, optimizedPdfUrl]);
+  }, [originalPdfUrl, optimizedPdfUrl, cvPdfUrl]);
 
   // Download handlers
   const handleDownloadOriginal = async () => {
@@ -146,7 +190,7 @@ function ResumePreview({
     }
   };
 
-  const handleDownloadCv = async () => {
+  const handleDownloadCV = async () => {
     if (!originalResume || !fullCV) return;
 
     try {
@@ -154,13 +198,15 @@ function ResumePreview({
         ...originalResume,
         rawText: fullCV.generatedResume,
       };
-      const blob = await generateResumePDFBlob(cvData, 'cv'); // Changed from 'optimized' to 'cv'
+      const blob = await generateResumePDFBlob(cvData, 'cv');
       const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Full_CV.pdf`;
       downloadPDFBlob(blob, filename);
     } catch (error) {
       toast.error('Failed to download CV PDF');
     }
   };
+
+
 
   return (
     <section className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/70 shadow-lg backdrop-blur">
@@ -214,6 +260,19 @@ function ResumePreview({
             >
               Optimized
             </button>
+            {fullCV && (
+              <button
+                onClick={() => onViewModeChange('cv')}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                  viewMode === 'cv'
+                    ? 'bg-purple-400 text-slate-950'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                type="button"
+              >
+                Full CV
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -392,6 +451,49 @@ function ResumePreview({
           </div>
         )}
 
+        {/* CV Only */}
+        {viewMode === 'cv' && fullCV && (
+          <div className="space-y-3">
+            {isGeneratingCV ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <div className="text-center">
+                  <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-purple-400 border-t-transparent"></div>
+                  <p className="text-sm text-slate-400">Generating CV PDF...</p>
+                </div>
+              </div>
+            ) : cvError ? (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10">
+                <div className="text-center">
+                  <p className="mb-2 text-sm text-red-300">{cvError}</p>
+                  <button
+                    onClick={generateCVPDF}
+                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200 hover:bg-white/10"
+                    type="button"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : cvPdfUrl ? (
+              <PDFViewer
+                pdfUrl={cvPdfUrl}
+                title="Full CV"
+                subtitle="Complete curriculum vitae"
+                badge={{ text: 'Full CV', color: 'purple' }}
+                height="800px"
+                onLoadError={(error) => {
+                  console.error('CV PDF load error:', error);
+                  setCvError(error.message);
+                }}
+              />
+            ) : (
+              <div className="flex h-[800px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <p className="text-sm text-slate-400">No CV available</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* AI Suggestions */}
         {generatedResume.suggestions.length > 0 && (
           <div className="mt-6 rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4">
@@ -456,6 +558,22 @@ function ResumePreview({
                 Download Optimized PDF
               </span>
             </button>
+
+            {fullCV && (
+              <button
+                onClick={handleDownloadCV}
+                disabled={!cvPdfUrl || isGeneratingCV}
+                className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-3 text-sm font-semibold text-purple-200 transition hover:bg-purple-400/20 disabled:opacity-50 disabled:cursor-not-allowed sm:col-span-2"
+                type="button"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download Full CV PDF
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="rounded-xl border border-blue-400/20 bg-blue-400/5 p-3">

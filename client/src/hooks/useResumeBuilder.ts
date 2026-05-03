@@ -36,6 +36,7 @@ interface UseResumeBuilderReturn extends ResumeBuilderState {
   // Resume Generation
   generateATSResume: () => Promise<void>;
   generateFullCV: () => Promise<void>;
+  fullCV?: ResumeGenerationResponse; // Add fullCV to return type
 
   // ATS Analysis
   runATSAnalysis: () => Promise<void>;
@@ -58,6 +59,7 @@ const initialState: ResumeBuilderState = {
 
 export function useResumeBuilder(): UseResumeBuilderReturn {
   const [state, setState] = useState<ResumeBuilderState>(initialState);
+  const [fullCV, setFullCV] = useState<ResumeGenerationResponse | undefined>(undefined);
 
   // File Upload Handler
   const handleFileUpload = useCallback(async (file: File) => {
@@ -353,9 +355,11 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         resumeType: 'full-cv',
       });
 
+      // Store full CV separately
+      setFullCV(response);
+      
       setState(prev => ({
         ...prev,
-        generatedResume: response,
         loading: false,
         currentStep: 'results',
       }));
@@ -373,9 +377,10 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         timestamp: new Date().toISOString(),
       };
 
+      setFullCV(fallbackCV);
+      
       setState(prev => ({
         ...prev,
-        generatedResume: fallbackCV,
         loading: false,
         currentStep: 'results',
       }));
@@ -514,6 +519,7 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
     analyzeJD,
     generateATSResume,
     generateFullCV,
+    fullCV, // Add fullCV to return
     runATSAnalysis,
     goToStep,
     nextStep,
