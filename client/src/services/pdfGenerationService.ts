@@ -397,7 +397,6 @@ function formatResumeContent(data: ParsedResumeData): string {
   
     // Footer
     content += '\n' + '_'.repeat(70) + '\n';
-    content += `Generated on ${new Date().toLocaleDateString()} by IBM Watsonx AI Resume Builder\n`;
     
     return content;
   } catch (error) {
