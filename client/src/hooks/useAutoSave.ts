@@ -1,21 +1,4 @@
 import { useEffect, useRef } from 'react';
-import toast from 'react-hot-toast';
-
-/**
- * Check if localStorage is available and accessible
- * 
- * @returns true if localStorage is available, false otherwise
- */
-function isLocalStorageAvailable(): boolean {
-  try {
-    const testKey = '__localStorage_test__';
-    localStorage.setItem(testKey, 'test');
-    localStorage.removeItem(testKey);
-    return true;
-  } catch (error) {
-    return false;
-  }
-}
 
 /**
  * Custom hook for auto-saving data to localStorage with debounce
@@ -33,7 +16,6 @@ export function useAutoSave<T>(
 ): void {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
-  const hasShownWarning = useRef(false);
 
   useEffect(() => {
     // Skip auto-save on first render to avoid saving initial empty state
@@ -55,38 +37,12 @@ export function useAutoSave<T>(
     // Set up new debounced save
     timerRef.current = setTimeout(() => {
       try {
-        // Check if localStorage is available
-        if (!isLocalStorageAvailable()) {
-          if (!hasShownWarning.current) {
-            toast.error('Auto-save unavailable: localStorage is disabled or full. Your work will not be saved automatically.', {
-              duration: 5000,
-            });
-            hasShownWarning.current = true;
-          }
-          console.warn('localStorage is unavailable. Auto-save disabled.');
-          return;
-        }
-
         const dataToSave = {
           data,
           timestamp: new Date().toISOString(),
         };
         localStorage.setItem(key, JSON.stringify(dataToSave));
       } catch (error) {
-        // Handle quota exceeded or other localStorage errors
-        if (!hasShownWarning.current) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          if (errorMessage.includes('quota') || errorMessage.includes('QuotaExceededError')) {
-            toast.error('Auto-save failed: Storage quota exceeded. Please clear some browser data.', {
-              duration: 5000,
-            });
-          } else {
-            toast.error('Auto-save unavailable. Your work will not be saved automatically.', {
-              duration: 5000,
-            });
-          }
-          hasShownWarning.current = true;
-        }
         console.error('Failed to save to localStorage:', error);
       }
     }, delay);
@@ -111,12 +67,6 @@ export function loadFromLocalStorage<T>(key: string): {
   timestamp: string;
 } | null {
   try {
-    // Check if localStorage is available
-    if (!isLocalStorageAvailable()) {
-      console.warn('localStorage is unavailable. Cannot load saved data.');
-      return null;
-    }
-
     const saved = localStorage.getItem(key);
     if (!saved) {
       return null;
@@ -135,12 +85,6 @@ export function loadFromLocalStorage<T>(key: string): {
  */
 export function clearFromLocalStorage(key: string): void {
   try {
-    // Check if localStorage is available
-    if (!isLocalStorageAvailable()) {
-      console.warn('localStorage is unavailable. Cannot clear saved data.');
-      return;
-    }
-
     localStorage.removeItem(key);
   } catch (error) {
     console.error('Failed to clear from localStorage:', error);

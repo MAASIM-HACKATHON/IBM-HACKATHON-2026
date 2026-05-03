@@ -1,4 +1,4 @@
-import { type ReactElement, useState, useEffect, memo, useCallback } from 'react';
+import { type ReactElement, useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -60,12 +60,11 @@ interface LanguageSettingsModalProps {
  * Requirements:
  * - 21.2: Provide a language selector component
  * - 21.6: Automatically detect input language when auto-detect is enabled
- * - 19.3: Optimized with React.memo to avoid unnecessary re-renders
  * 
  * @param props - Component props
  * @returns Modal component for language settings
  */
-export const LanguageSettingsModal = memo(function LanguageSettingsModal({
+export function LanguageSettingsModal({
   open,
   onOpenChange,
   targetLanguage,
@@ -100,28 +99,26 @@ export const LanguageSettingsModal = memo(function LanguageSettingsModal({
   /**
    * Handle save button click
    * Apply all settings and close modal
-   * Requirement 19.3: Use useCallback to prevent unnecessary re-renders
    */
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     onTargetLanguageChange(localLanguage);
     onAutoDetectLanguageChange(localAutoDetect);
     onCulturalAdaptationChange(localCulturalAdaptation);
     onLocalizedToneChange(localTone);
     onOpenChange(false);
-  }, [localLanguage, localAutoDetect, localCulturalAdaptation, localTone, onTargetLanguageChange, onAutoDetectLanguageChange, onCulturalAdaptationChange, onLocalizedToneChange, onOpenChange]);
+  };
 
   /**
    * Handle cancel button click
    * Reset local state and close modal
-   * Requirement 19.3: Use useCallback to prevent unnecessary re-renders
    */
-  const handleCancel = useCallback(() => {
+  const handleCancel = () => {
     setLocalLanguage(targetLanguage);
     setLocalAutoDetect(autoDetectLanguage);
     setLocalCulturalAdaptation(culturalAdaptation);
     setLocalTone(localizedTone || '');
     onOpenChange(false);
-  }, [targetLanguage, autoDetectLanguage, culturalAdaptation, localizedTone, onOpenChange]);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -289,4 +286,4 @@ export const LanguageSettingsModal = memo(function LanguageSettingsModal({
       </DialogContent>
     </Dialog>
   );
-});
+}

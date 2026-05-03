@@ -285,8 +285,6 @@ function ResumeBuilderPage(): ReactElement {
                   loading={resumeBuilder.loading}
                   hasGeneratedResume={!!resumeBuilder.generatedResume}
                   hasATSScore={!!resumeBuilder.atsScore}
-                  hasJobDescription={!!resumeBuilder.jobDescription}
-                  hasJobAnalysis={!!resumeBuilder.jobAnalysis}
                   onGenerateATSResume={handleGenerateATSResume}
                   onGenerateFullCV={handleGenerateFullCV}
                   onRunATSAnalysis={handleRunATSAnalysis}
@@ -350,12 +348,11 @@ function ResumeBuilderPage(): ReactElement {
       </div>
 
       {/* Email Generator Modal */}
-      {resumeBuilder.generatedResume && (
+      {showEmailModal && resumeBuilder.generatedResume && (
         <EmailGeneratorModal
           resumeContent={resumeBuilder.generatedResume.generatedResume}
           jobDescription={resumeBuilder.jobDescription}
-          open={showEmailModal}
-          onOpenChange={setShowEmailModal}
+          onClose={() => setShowEmailModal(false)}
         />
       )}
     </main>

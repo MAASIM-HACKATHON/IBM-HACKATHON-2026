@@ -1,8 +1,6 @@
 import { type ReactElement } from 'react';
 import type { ATSScoreResult } from '../../../types/resume.types';
 import type { JobDescriptionAnalysis } from '../../../types/resume.types';
-import { Badge } from '@/components/ui/badge';
-import { BarChart3, Info } from 'lucide-react';
 
 interface ATSScoreCardProps {
   atsScore: ATSScoreResult;
@@ -36,7 +34,9 @@ function ATSScoreCard({ atsScore }: ATSScoreCardProps): ReactElement {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/10">
-              <BarChart3 className="h-5 w-5 text-emerald-300" />
+              <svg className="h-5 w-5 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
             </div>
             <div>
               <h2 className="text-lg font-semibold text-white">ATS Score</h2>
@@ -199,47 +199,13 @@ function ATSScoreCard({ atsScore }: ATSScoreCardProps): ReactElement {
             <ul className="space-y-2">
               {atsScore.recommendations.map((rec, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm text-slate-300">
-                  <Info className="h-4 w-4 shrink-0 text-cyan-400 mt-0.5" />
+                  <svg className="h-4 w-4 shrink-0-cyan-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
                   {rec}
                 </li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {/* Experience Level - Sub-task 18.2 */}
-        {/* Requirement 10.6: Display detected experience level */}
-        {atsScore.experience_level && (
-          <div className="rounded-xl border border-blue-400/30 bg-blue-400/10 p-4">
-            <h3 className="text-sm font-semibold text-blue-100 mb-2">Experience Level</h3>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-blue-400/20 text-blue-200 border-blue-400/30 text-sm px-3 py-1">
-                {atsScore.experience_level}
-              </Badge>
-              <span className="text-xs text-blue-200/70">
-                Detected from your resume
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Possible Job Roles - Sub-task 18.2 */}
-        {/* Requirement 10.7: Display possible job roles based on resume content */}
-        {atsScore.possible_roles && atsScore.possible_roles.length > 0 && (
-          <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4">
-            <h3 className="text-sm font-semibold text-cyan-100 mb-3">
-              Possible Job Roles ({atsScore.possible_roles.length})
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {atsScore.possible_roles.map((role, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-medium text-cyan-200"
-                >
-                  {role}
-                </span>
-              ))}
-            </div>
           </div>
         )}
 
