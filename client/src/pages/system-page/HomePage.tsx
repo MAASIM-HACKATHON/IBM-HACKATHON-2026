@@ -180,8 +180,9 @@ function HomePage(): ReactElement {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button 
                 size="lg"
+                variant="primary"
                 onClick={() => handleNavigation('/email-generator')}
-                className="w-full sm:w-auto bg-[#2C4C82] hover:bg-[#2C4C82]/90 text-white"
+                className="w-full sm:w-auto"
               >
                 <Mail className="mr-2 h-5 w-5" />
                 Start Email Generator
@@ -190,7 +191,7 @@ function HomePage(): ReactElement {
                 size="lg"
                 variant="outline"
                 onClick={() => handleNavigation('/resume-builder')}
-                className="w-full sm:w-auto border-[#2C4C82] text-[#2C4C82] hover:bg-[#2C4C82]/10"
+                className="w-full sm:w-auto"
               >
                 <FileText className="mr-2 h-5 w-5" />
                 Start Resume Builder
