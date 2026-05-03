@@ -3,17 +3,21 @@ import type { JobDescriptionAnalysis } from '../../../types/resume.types';
 
 interface JobDescriptionSectionProps {
   jobDescription: string;
+  jobTitle?: string; // NEW
   jobAnalysis?: JobDescriptionAnalysis;
   loading: boolean;
   onJobDescriptionChange: (description: string) => void;
+  onJobTitleChange: (title: string) => void; // NEW
   onAnalyze: () => Promise<void>;
 }
 
 function JobDescriptionSection({
   jobDescription,
+  jobTitle,
   jobAnalysis,
   loading,
   onJobDescriptionChange,
+  onJobTitleChange,
   onAnalyze,
 }: JobDescriptionSectionProps): ReactElement {
   return (
@@ -42,6 +46,7 @@ function JobDescriptionSection({
             <div className="text-xs text-blue-200 leading-relaxed">
               <p className="font-medium mb-1">💡 For best results:</p>
               <ul className="space-y-1 ml-4 list-disc">
+                <li>Provide the job title for better role alignment</li>
                 <li>Include specific technical skills and technologies</li>
                 <li>Add required qualifications and experience level</li>
                 <li>Paste the complete job description (minimum 20 characters)</li>
@@ -50,14 +55,49 @@ function JobDescriptionSection({
           </div>
         </div>
 
-        <textarea
-          value={jobDescription}
-          onChange={(e) => onJobDescriptionChange(e.target.value)}
-          placeholder="Paste the job description here to optimize your resume for this specific role...&#10;&#10;Example: We are looking for a Senior Full Stack Developer with 5+ years of experience in React, Node.js, TypeScript, and AWS. The ideal candidate should have strong problem-solving skills..."
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
-          rows={8}
-          disabled={loading}
-        />
+        {/* Job Title Input */}
+        <div>
+          <label htmlFor="job-title" className="block text-sm font-medium text-white mb-2">
+            Job Title <span className="text-slate-400 font-normal">(Optional but recommended)</span>
+          </label>
+          <input
+            id="job-title"
+            type="text"
+            value={jobTitle || ''}
+            onChange={(e) => onJobTitleChange(e.target.value)}
+            placeholder="e.g., Senior Full-Stack Engineer, Frontend Developer, Data Scientist..."
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+            disabled={loading}
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            {jobTitle ? (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Will use "{jobTitle}" for role-specific optimization
+              </span>
+            ) : (
+              'If not provided, we\'ll try to extract the role from the job description'
+            )}
+          </p>
+        </div>
+
+        {/* Job Description Textarea */}
+        <div>
+          <label htmlFor="job-description" className="block text-sm font-medium text-white mb-2">
+            Job Description
+          </label>
+          <textarea
+            id="job-description"
+            value={jobDescription}
+            onChange={(e) => onJobDescriptionChange(e.target.value)}
+            placeholder="Paste the job description here to optimize your resume for this specific role...&#10;&#10;Example: We are looking for a Senior Full Stack Developer with 5+ years of experience in React, Node.js, TypeScript, and AWS. The ideal candidate should have strong problem-solving skills..."
+            className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-400/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/20"
+            rows={8}
+            disabled={loading}
+          />
+        </div>
 
         {/* Character count indicator */}
         <div className="flex items-center justify-between text-xs">

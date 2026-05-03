@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { CandidateResume } from '@/types/ats.types';
+import { CVGeneratorService } from '@/services/cvGeneratorService';
 
 interface ResumeGenerationRequest {
   profileData: CandidateResume;
@@ -7,6 +8,15 @@ interface ResumeGenerationRequest {
   resumeType: 'ats-optimized' | 'full-cv';
   targetRole?: string;
   additionalInstructions?: string;
+  atsInsights?: ATSInsights; // Required for CV generation
+}
+
+interface ATSInsights {
+  keywords: string[];
+  gaps: string[];
+  strengths: string[];
+  score: number;
+  prioritizedSkills: string[];
 }
 
 interface ResumeGenerationResponse {
@@ -15,6 +25,7 @@ interface ResumeGenerationResponse {
   suggestions: string[];
   weakSections: string[];
   timestamp: string;
+  insights?: ATSInsights; // Returned from ATS generation
 }
 
 // CORS headers helper
@@ -51,7 +62,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: ResumeGenerationRequest = await request.json();
-    const { profileData, jobDescription, resumeType, targetRole, additionalInstructions } = body;
+    const { profileData, jobDescription, resumeType, targetRole, additionalInstructions, atsInsights } = body;
 
     // Validate input
     if (!profileData) {
@@ -61,13 +72,73 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate resume based on type
+    // Handle Full CV generation with new CV Generator Service
+    if (resumeType === 'full-cv') {
+      try {
+        console.log('🔥 API Route: Full CV generation requested');
+        console.log('   Has profileData:', !!profileData);
+        console.log('   Has jobDescription:', !!jobDescription);
+        console.log('   Has atsInsights:', !!atsInsights);
+        console.log('   Target role:', targetRole || 'not provided');
+        
+        const cvGenerator = new CVGeneratorService();
+        const cv = await cvGenerator.generateFullCV({
+          profileData,
+          jobDescription,
+          atsInsights, // Optional - backend will compute if missing
+          targetRole
+        });
+        
+        console.log('🔥 API Route: CV generation complete');
+        console.log('   CV length:', cv.length);
+        console.log('   CV first 500 chars:', cv.substring(0, 500));
+        console.log('   CV last 500 chars:', cv.substring(Math.max(0, cv.length - 500)));
+        
+        const response = {
+          generatedResume: cv,
+          format: 'plain',
+          suggestions: ['CV enhanced with AI expansion and personalization'],
+          weakSections: [],
+          timestamp: new Date().toISOString()
+        };
+        
+        console.log('🔥 API Route: Sending response to frontend');
+        console.log('   Response generatedResume length:', response.generatedResume.length);
+        
+        return NextResponse.json(response, { headers: corsHeaders });
+      } catch (error) {
+        console.error('❌ CV generation error:', error);
+        // Fallback to rule-based generation
+        const fallbackCV = generateResumeContent(
+          profileData,
+          jobDescription,
+          resumeType,
+          targetRole,
+          additionalInstructions,
+          atsInsights
+        );
+        
+        console.log('⚠️  API Route: Using fallback CV');
+        console.log('   Fallback CV length:', fallbackCV.length);
+        
+        return NextResponse.json({
+          generatedResume: fallbackCV,
+          format: 'plain',
+          suggestions: ['Generated with rule-based formatting (AI unavailable)'],
+          weakSections: [],
+          timestamp: new Date().toISOString()
+        }, { headers: corsHeaders });
+      }
+    }
+
+    // Handle ATS-Optimized Resume generation (existing logic)
     const generatedResume = generateResumeContent(
       profileData,
       jobDescription,
       resumeType,
       targetRole,
-      additionalInstructions
+      additionalInstructions,
+      atsInsights
     );
 
     // Generate suggestions
@@ -84,6 +155,12 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     };
 
+    // For ATS resume, extract and include insights
+    if (resumeType === 'ats-optimized') {
+      const jobKeywords = extractKeywords(jobDescription);
+      response.insights = extractATSInsights(profileData, jobKeywords, weakSections);
+    }
+
     return NextResponse.json(response, { headers: corsHeaders });
   } catch (error) {
     console.error('Resume generation error:', error);
@@ -99,7 +176,8 @@ function generateResumeContent(
   jobDescription: string,
   resumeType: 'ats-optimized' | 'full-cv',
   targetRole?: string,
-  additionalInstructions?: string
+  additionalInstructions?: string,
+  atsInsights?: ATSInsights
 ): string {
   let resume = '';
 
@@ -386,6 +464,77 @@ function generateSuggestions(
   }
 
   return suggestions;
+}
+
+function extractATSInsights(
+  profileData: CandidateResume,
+  jobKeywords: string[],
+  weakSections: string[]
+): ATSInsights {
+  const insights: ATSInsights = {
+    keywords: jobKeywords,
+    gaps: [],
+    strengths: [],
+    score: 0,
+    prioritizedSkills: [],
+  };
+
+  // Identify gaps from weak sections
+  insights.gaps = weakSections.map(section => {
+    if (section.includes('Skills')) return 'Limited technical skills listed';
+    if (section.includes('experience')) return 'Work experience needs more detail';
+    if (section.includes('Education')) return 'Education section incomplete';
+    return section;
+  });
+
+  // Identify strengths
+  const resumeText = JSON.stringify(profileData).toLowerCase();
+  
+  // Check keyword coverage
+  const matchedKeywords = jobKeywords.filter(keyword => 
+    resumeText.includes(keyword.toLowerCase())
+  );
+  const keywordMatchRate = (matchedKeywords.length / Math.max(jobKeywords.length, 1)) * 100;
+  
+  if (keywordMatchRate > 70) {
+    insights.strengths.push('Strong keyword alignment with job requirements');
+  }
+  
+  // Check for quantifiable achievements
+  const hasQuantifiableAchievements = profileData.workExperience?.some(exp => 
+    exp.description?.match(/\d+%|\$\d+|increased|decreased|improved/i)
+  );
+  if (hasQuantifiableAchievements) {
+    insights.strengths.push('Includes quantifiable achievements');
+  }
+  
+  // Check experience level
+  const totalYears = calculateTotalExperience(profileData);
+  if (totalYears >= 5) {
+    insights.strengths.push(`${totalYears}+ years of relevant experience`);
+  }
+  
+  // Check skills count
+  if (profileData.skills && profileData.skills.length >= 8) {
+    insights.strengths.push('Comprehensive technical skill set');
+  }
+  
+  // Calculate ATS score
+  let score = 0;
+  score += Math.min(keywordMatchRate, 40); // Max 40 points for keywords
+  score += profileData.skills && profileData.skills.length >= 8 ? 20 : 10; // 20 points for skills
+  score += hasQuantifiableAchievements ? 20 : 0; // 20 points for achievements
+  score += totalYears >= 3 ? 20 : 10; // 20 points for experience
+  
+  insights.score = Math.round(score);
+  
+  // Prioritize skills based on job keywords
+  insights.prioritizedSkills = prioritizeSkills(
+    profileData.skills || [],
+    jobKeywords
+  );
+  
+  return insights;
 }
 
 function identifyWeakSections(profileData: CandidateResume): string[] {
