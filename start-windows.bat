@@ -87,36 +87,50 @@ if not exist "venv\" (
         pause
         exit /b 1
     )
+    echo [INFO] Virtual environment created successfully
 )
 
-echo [INFO] Installing Python dependencies...
-call venv\Scripts\activate.bat
-pip install -r requirements.txt >nul 2>nul
-if %ERRORLEVEL% NEQ 0 (
-    echo [WARNING] Some Python packages may have failed to install
+if not exist "venv\Lib\site-packages\uvicorn\" (
+    echo [INFO] Installing Python dependencies...
+    call venv\Scripts\activate.bat
+    echo [INFO] Upgrading pip...
+    python -m pip install --upgrade pip --quiet
+    echo [INFO] Installing requirements ^(this may take a few minutes^)...
+    pip install -r requirements.txt
+    if %ERRORLEVEL% NEQ 0 (
+        echo [ERROR] Failed to install Python dependencies
+        call deactivate
+        cd ..\..
+        pause
+        exit /b 1
+    )
+    echo [INFO] Python dependencies installed successfully
+    call deactivate
+) else (
+    echo [INFO] Python dependencies already installed
 )
-call deactivate
 cd ..\..
+echo.
 
 REM ============================================
 REM STEP 4: Start Python Parser Service
 REM ============================================
 echo [4/6] Starting Python Parser service...
-start "Python Parser" cmd /k "cd server\python-parser && venv\Scripts\activate.bat && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
-timeout /t 3 /nobreak >nul
+start "Python Parser" cmd /k "cd /d %~dp0server\python-parser && venv\Scripts\activate.bat && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+timeout /t 5 /nobreak >nul
 
 REM ============================================
 REM STEP 5: Start Server (Next.js)
 REM ============================================
 echo [5/6] Starting server...
-start "Server" cmd /k "cd server && npm run dev"
-timeout /t 3 /nobreak >nul
+start "Server" cmd /k "cd /d %~dp0server && npm run dev"
+timeout /t 5 /nobreak >nul
 
 REM ============================================
 REM STEP 6: Start Client (Vite)
 REM ============================================
 echo [6/6] Starting client...
-start "Client" cmd /k "cd client && npm run dev"
+start "Client" cmd /k "cd /d %~dp0client && npm run dev"
 
 echo.
 echo ========================================
