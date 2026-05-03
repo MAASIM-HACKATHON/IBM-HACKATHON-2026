@@ -21,6 +21,7 @@ import { SUPPORTED_LANGUAGES } from '@/config/languages';
 import type { SupportedLanguage } from '@/types/language.types';
 import { LanguageSettingsModal } from '@/components/features';
 import { FileUpload } from '@/components/ui/file-upload';
+import { EmptyState } from '@/components/ui/empty-state';
 import { processUploadedFile } from '@/services/fileProcessingService';
 import { emailService, type EmailGenerationRequest, type EmailGenerationResponse } from '@/services/emailService';
 import { useAutoSave, loadFromLocalStorage, clearFromLocalStorage, formatRelativeTime } from '@/hooks/useAutoSave';
@@ -1142,8 +1143,9 @@ function EmailGeneratorPage(): ReactElement {
               <div className="flex gap-3 pt-4">
                 <Button
                   type="submit"
+                  variant="primary"
                   disabled={isGenerating || !purpose || !tone || !contextMessage.trim()}
-                  className="flex-1 bg-[#2C4C82] hover:bg-[#2C4C82]/90"
+                  className="flex-1"
                 >
                   {isGenerating ? (
                     <>
@@ -1294,20 +1296,13 @@ function EmailGeneratorPage(): ReactElement {
                 </div>
               </div>
             ) : (
-              /* Empty state - shown when no email has been generated */
-              <div className="space-y-4 rounded-lg border border-dashed border-border p-8 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#2C4C82]/10">
-                  <Mail className="h-6 w-6 text-[#2C4C82]" />
-                </div>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Ready to generate your email
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Fill out the form and click generate to create your AI-powered email draft
-                  </p>
-                </div>
-              </div>
+              /* Task 25.3: Enhanced empty state with helpful guidance */
+              /* Requirement 17.4: Display empty state with helpful guidance when page section has no content */
+              <EmptyState
+                icon={Mail}
+                title="Ready to generate your email"
+                description="Fill out the form on the left with your email purpose, tone, and context. You can also paste content for auto-fill or upload a document to extract text. Click 'Generate Email' when ready."
+              />
             )}
           </CardContent>
         </Card>

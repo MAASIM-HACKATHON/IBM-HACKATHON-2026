@@ -1,4 +1,3 @@
-import * as React from "react"
 import toast, { Toaster as HotToaster, Toast as HotToast } from "react-hot-toast"
 import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react"
 import { cn } from "@/lib/utils"

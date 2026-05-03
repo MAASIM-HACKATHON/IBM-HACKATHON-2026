@@ -68,21 +68,15 @@ export function Sidebar() {
   return (
     <TooltipProvider delayDuration={150}>
       <aside
+        id="sidebar-navigation"
         className={cn(
           'fixed left-0 top-0 h-screen bg-background border-r border-border transition-all duration-300 ease-in-out z-40',
           isExpanded ? 'w-64' : 'w-16'
         )}
         role="navigation"
         aria-label="Main navigation"
+        tabIndex={-1}
       >
-        {/* Skip navigation link for accessibility */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
-        >
-          Skip to main content
-        </a>
-
         <div className="flex flex-col h-full">
           {/* Header with theme toggle */}
           <div className="p-2 border-b border-border flex items-center justify-center">

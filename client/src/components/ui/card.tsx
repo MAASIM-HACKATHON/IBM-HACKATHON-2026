@@ -140,4 +140,3 @@ export {
   CardDescription,
   CardContent,
 }
-export type { CardProps }
