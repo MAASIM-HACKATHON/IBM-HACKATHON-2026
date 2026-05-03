@@ -111,6 +111,20 @@ export async function parseResumeFile(file: File): Promise<ParsedResumeData> {
       sectionsKeys: parsedData.parsedSections ? Object.keys(parsedData.parsedSections) : [],
     });
     
+    // Log debug info if available
+    if (parsedData._debug) {
+      console.log('\n🔍 SERVER DEBUG INFO:');
+      console.log('  Parser Used:', parsedData._debug.parserUsed);
+      console.log('  AI Parser Available:', parsedData._debug.aiParserAvailable);
+      console.log('  USE_AI_PARSER Flag:', parsedData._debug.useAiParserFlag);
+      console.log('  Timestamp:', parsedData._debug.timestamp);
+      
+      if (parsedData._debug.parserUsed === 'rule_based_fallback') {
+        console.warn('⚠️  WARNING: Using rule-based parser instead of AI!');
+        console.warn('   This means the AI parser is not working correctly.');
+      }
+    }
+    
     console.log(`[${new Date().toISOString()}] ✅ CLIENT SERVICE: parseResumeFile completed successfully\n`);
     return parsedData;
   } catch (error) {

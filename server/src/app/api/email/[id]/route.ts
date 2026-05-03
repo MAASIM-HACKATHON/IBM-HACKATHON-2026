@@ -6,10 +6,11 @@ import emailService from '@/services/emailService';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const emailId = parseInt(params.id);
+    const resolvedParams = await params;
+    const emailId = parseInt(resolvedParams.id);
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 

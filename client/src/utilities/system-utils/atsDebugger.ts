@@ -7,7 +7,15 @@
 
 import type { ATSScoreResult } from '../../types/resume.types';
 import type { ParsedResumeData, JobDescriptionAnalysis } from '../../types/resume.types';
-import type { CandidateResume, JobRole, ATSAnalysisResponse } from '../../services/atsService';
+import type { CandidateResume } from '../../services/atsService';
+
+// JobRole type definition for ATS request payload
+interface JobRole {
+  title: string;
+  required_skills: string[];
+  preferred_skills?: string[];
+  experience_level?: string;
+}
 
 export interface ATSDebugInfo {
   timestamp: string;
@@ -55,8 +63,7 @@ export function debugATSScoring(
   jobDescription: string,
   jobAnalysis: JobDescriptionAnalysis | undefined,
   atsScore: ATSScoreResult | undefined,
-  atsRequest?: { resume: CandidateResume; jobs: JobRole[] },
-  atsResponse?: ATSAnalysisResponse
+  atsRequest?: { resume: CandidateResume; jobs: JobRole[] }
 ): ATSDebugInfo {
   const issues: string[] = [];
   const suggestions: string[] = [];

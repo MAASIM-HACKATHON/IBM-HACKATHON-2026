@@ -1,0 +1,62 @@
+{
+  "task": "Error Fix Report",
+  "status": "in_progress | resolved | partial",
+  "summary": "Brief description of the issues addressed and overall fix outcome.",
+
+  "environments": {
+    "client": {
+      "framework": "",
+      "build_tool": "",
+      "status": "fixed | pending | failed"
+    },
+    "server": {
+      "framework": "",
+      "runtime": "",
+      "status": "fixed | pending | failed"
+    }
+  },
+
+  "errors_detected": [
+    {
+      "scope": "client | server | shared",
+      "type": "build | runtime | type | dependency | config | api",
+      "message": "",
+      "file": "",
+      "cause": "",
+      "severity": "low | medium | high | critical"
+    }
+  ],
+
+  "fixes_applied": [
+    {
+      "scope": "client | server | shared",
+      "change": "",
+      "files_modified": [],
+      "reason": "",
+      "impact": "build fix | type fix | runtime fix | performance | security"
+    }
+  ],
+
+  "root_cause_analysis": [
+    "Key underlying reasons why the errors occurred"
+  ],
+
+  "verification_steps": [
+    "Re-run build process",
+    "Type-check validation",
+    "API endpoint testing",
+    "Manual smoke test"
+  ],
+
+  "final_build_status": {
+    "client_build": "success | failed",
+    "server_build": "success | failed",
+    "type_check": "success | failed",
+    "runtime_health": "healthy | unstable"
+  },
+
+  "recommendations": [
+    "Preventive improvements for future stability",
+    "Refactoring suggestions if needed"
+  ]
+}

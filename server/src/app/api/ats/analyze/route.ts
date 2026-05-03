@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import ATSEngine from '@/lib/ats-engine';
 import type { ATSAnalysisRequest, ATSAnalysisResponse } from '@/types/ats.types';
+import { sanitizeResumeInput, checkRateLimit } from '@/lib/security';
+import { handleAPIRequest, createRateLimitError, createValidationError } from '@/lib/errorHandler';
 
 // CORS headers helper
 function getCorsHeaders(origin: string | null) {
@@ -44,53 +46,69 @@ export async function POST(request: NextRequest) {
   const origin = request.headers.get('origin');
   const corsHeaders = getCorsHeaders(origin);
 
-  try {
-    const startTime = Date.now();
-    
-    // Parse request body
-    const body: ATSAnalysisRequest = await request.json();
-    
-    // Validate input
-    if (!body.resume) {
-      return NextResponse.json(
-        { error: 'Resume data is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
-    if (!body.jobs || !Array.isArray(body.jobs) || body.jobs.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one job role is required' },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-    
-    // Run ATS analysis
-    const result = ATSEngine.analyze(body.resume, body.jobs);
-    
-    // Calculate processing time
-    const processingTime = Date.now() - startTime;
-    
-    // Prepare response
-    const response: ATSAnalysisResponse = {
-      ...result,
-      timestamp: new Date().toISOString(),
-      processingTime,
-    };
-    
-    return NextResponse.json(response, { status: 200, headers: corsHeaders });
-    
-  } catch (error) {
-    console.error('ATS Analysis Error:', error);
-    
+  // Rate limiting check
+  const ip = request.headers.get('x-forwarded-for') ||
+             request.headers.get('x-real-ip') ||
+             'unknown';
+  
+  if (!checkRateLimit(ip, 20)) { // 20 requests per minute for ATS
+    const error = createRateLimitError();
     return NextResponse.json(
-      { 
-        error: 'Failed to analyze resume',
-        details: error instanceof Error ? error.message : 'Unknown error'
+      {
+        success: false,
+        error: error.message,
+        retryAfter: 60
       },
-      { status: 500, headers: corsHeaders }
+      { status: 429, headers: corsHeaders }
     );
   }
+
+  return handleAPIRequest(
+    async () => {
+      const startTime = Date.now();
+      
+      // Parse request body
+      const body: ATSAnalysisRequest = await request.json();
+      
+      // Validate input
+      if (!body.resume) {
+        throw createValidationError('Resume data is required');
+      }
+      
+      if (!body.jobs || !Array.isArray(body.jobs) || body.jobs.length === 0) {
+        throw createValidationError('At least one job role is required');
+      }
+      
+      // Sanitize resume input
+      const sanitizedResume = sanitizeResumeInput(body.resume);
+      
+      // Run ATS analysis
+      const result = ATSEngine.analyze(sanitizedResume, body.jobs);
+      
+      // Calculate processing time
+      const processingTime = Date.now() - startTime;
+      
+      // Prepare response
+      const response: ATSAnalysisResponse = {
+        ...result,
+        timestamp: new Date().toISOString(),
+        processingTime,
+      };
+      
+      return response;
+    }
+  ).then(response => {
+    // Add CORS headers to response
+    const headers = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    
+    return new NextResponse(response.body, {
+      status: response.status,
+      headers
+    });
+  });
 }
 
 /**

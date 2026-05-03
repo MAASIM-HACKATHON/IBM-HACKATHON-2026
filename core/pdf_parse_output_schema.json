@@ -1,0 +1,13 @@
+{
+  "file_name": "string",
+  "total_pages": "number",
+  "raw_text": "string",
+  "pages": [
+    {
+      "page_number": "number",
+      "text": "string"
+    }
+  ],
+  "status": "success | failed",
+  "error": "string | null"
+}

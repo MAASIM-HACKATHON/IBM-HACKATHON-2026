@@ -3,7 +3,7 @@
  * Comprehensive type definitions for the AI Resume Builder & ATS Optimizer
  */
 
-import type { CandidateResume, ATSResult, JobRole } from '../services/atsService';
+import type { CandidateResume, ATSResult } from '../services/atsService';
 
 // Resume Generation Types
 export interface ResumeGenerationRequest {
@@ -193,4 +193,34 @@ export interface ExportOptions {
   includeFormatting: boolean;
   includeColors: boolean;
   template?: 'modern' | 'classic' | 'minimal' | 'professional';
+}
+
+// PDF Viewer Types
+export interface PDFViewerState {
+  pdfUrl: string | null;
+  pdfFile: File | null;
+  isGenerating: boolean;
+  error: string | null;
+}
+
+export interface PDFGenerationOptions {
+  fontSize?: number;
+  fontFamily?: string;
+  lineHeight?: number;
+  margins?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  pageSize?: 'A4' | 'Letter';
+  orientation?: 'portrait' | 'landscape';
+}
+
+export interface PDFMetadata {
+  title: string;
+  author?: string;
+  subject?: string;
+  keywords?: string[];
+  creator?: string;
 }

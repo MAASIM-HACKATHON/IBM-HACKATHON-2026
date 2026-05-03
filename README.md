@@ -15,14 +15,31 @@ People waste time writing emails or don't sound professional.
 
 ## 🚀 Quick Start
 
-### Option 1: Automated Setup (Windows)
-```bash
-# Run setup script
-setup.bat
+### Option 1: Automated Startup (Recommended)
 
-# Start development servers
-start-dev.bat
+**Windows:**
+```bash
+# Double-click or run from command prompt
+.\start-windows.bat
 ```
+
+**macOS/Linux:**
+```bash
+# Make executable (first time only)
+chmod +x start-mac.sh
+
+# Run the script
+./start-mac.sh
+```
+
+The automated scripts will:
+- ✅ Check for Node.js and Python installation
+- ✅ Install all dependencies automatically (client, server, Python parser)
+- ✅ Create Python virtual environment if needed
+- ✅ Start all 3 services simultaneously:
+  - **Python Parser**: http://localhost:8000
+  - **Server (Next.js)**: http://localhost:3001
+  - **Client (React)**: http://localhost:5173
 
 ### Option 2: Manual Setup
 
@@ -31,25 +48,43 @@ start-dev.bat
 CREATE DATABASE db_ibmbob_hackathon_system;
 ```
 
-**2. Server Setup**
+**2. Install Dependencies**
 ```bash
-cd server
-npm install
-npx prisma generate
-npx prisma migrate dev --name add_email_tables
-npm run dev
-```
-
-**3. Client Setup**
-```bash
+# Client
 cd client
 npm install
+
+# Server
+cd ../server
+npm install
+
+# Python Parser
+cd python-parser
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate.bat
+pip install -r requirements.txt
+```
+
+**3. Start Services Manually**
+```bash
+# Terminal 1: Python Parser
+cd server/python-parser
+source venv/bin/activate
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Terminal 2: Server
+cd server
+npm run dev
+
+# Terminal 3: Client
+cd client
 npm run dev
 ```
 
 **4. Access Application**
 - **Client**: http://localhost:5173
 - **Server**: http://localhost:3001
+- **Python Parser**: http://localhost:8000
 
 ---
 

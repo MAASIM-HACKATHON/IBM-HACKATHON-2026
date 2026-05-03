@@ -1,4 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPythonParserClient, isPythonParserAvailable } from '@/services/pythonParserClient';
+import { ParseResponse as PythonParseResponse } from '@/types/pdf-parser.types';
+import { ResumeParserService } from '@/services/resumeParserService';
+import { ResumeValidationService } from '@/services/resumeValidationService';
+
+// Cache pdf-parse import to avoid repeated dynamic imports (performance optimization)
+// @ts-ignore - pdf-parse doesn't have TypeScript definitions
+let pdfParseCache: any = null;
+async function getPdfParse() {
+  if (!pdfParseCache) {
+    // @ts-ignore - pdf-parse doesn't have TypeScript definitions
+    pdfParseCache = (await import('pdf-parse')).default;
+  }
+  return pdfParseCache;
+}
+
+// Feature flags
+const USE_PYTHON_PARSER = process.env.USE_PYTHON_PARSER !== 'false';
+const USE_AI_PARSER = process.env.USE_AI_PARSER !== 'false';
+
+// Initialize AI services
+const aiParser = new ResumeParserService();
+const validator = new ResumeValidationService();
+
+// Performance tracking
+interface PerformanceMetrics {
+  extractionTime: number;
+  parsingTime: number;
+  totalTime: number;
+}
+
+// Environment-based logging (reduce verbosity in production)
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const log = {
+  info: (...args: any[]) => isDevelopment && console.log(...args),
+  error: (...args: any[]) => console.error(...args),
+  debug: (...args: any[]) => isDevelopment && console.log(...args),
+};
 
 interface ParsedResumeData {
   rawText: string;
@@ -46,6 +84,12 @@ interface ParsedResumeData {
       honors?: string[];
     }>;
     certifications: string[];
+  };
+  metadata?: {
+    parsingMethod: 'ai_hybrid' | 'rule_based_fallback';
+    confidence: number;
+    warnings: string[];
+    processingTime?: number;
   };
   skills?: string[];
   workExperience?: Array<any>;
@@ -149,27 +193,168 @@ export async function POST(request: NextRequest) {
     const buffer = await file.arrayBuffer();
     console.log('✓ File buffer created, size:', buffer.byteLength, 'bytes');
     
-    console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5: Extracting Text from File`);
-    console.log('File type for extraction:', file.type);
-    const extractStartTime = Date.now();
+    // STEP 4.5: Try Python Parser Service (PyMuPDF) for PDF files
+    let text: string;
+    let usedPythonParser = false;
     
-    const text = await extractTextFromFile(buffer, file.type);
+    if (USE_PYTHON_PARSER && file.type === 'application/pdf') {
+      console.log(`\n[${new Date().toISOString()}] 🐍 STEP 4.5: Attempting Python Parser (PyMuPDF)`);
+      
+      try {
+        const pythonClient = getPythonParserClient();
+        const nodeBuffer = Buffer.from(buffer);
+        
+        console.log('✓ Calling Python parser microservice...');
+        const pythonStartTime = Date.now();
+        
+        const pythonResponse: PythonParseResponse = await pythonClient.parsePDF(
+          nodeBuffer,
+          file.name
+        );
+        
+        const pythonEndTime = Date.now();
+        console.log(`✓ Python parser completed in ${pythonEndTime - pythonStartTime}ms`);
+        console.log(`  Status: ${pythonResponse.status}`);
+        console.log(`  Pages: ${pythonResponse.total_pages}`);
+        console.log(`  Text length: ${pythonResponse.raw_text.length} characters`);
+        
+        if (pythonResponse.status === 'success' && pythonResponse.raw_text) {
+          text = pythonResponse.raw_text;
+          usedPythonParser = true;
+          console.log('✅ Using Python parser result');
+        } else {
+          console.warn('⚠️  Python parser returned failed status, falling back to pdf-parse');
+          console.warn(`  Error: ${pythonResponse.error}`);
+          throw new Error(pythonResponse.error || 'Python parser failed');
+        }
+        
+      } catch (pythonError) {
+        console.warn('⚠️  Python parser unavailable or failed, falling back to pdf-parse');
+        console.warn('  Error:', pythonError instanceof Error ? pythonError.message : String(pythonError));
+        
+        // Fallback to pdf-parse
+        console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5 (Fallback): Extracting Text with pdf-parse`);
+        const extractStartTime = Date.now();
+        text = await extractTextFromFile(buffer, file.type);
+        const extractEndTime = Date.now();
+        console.log(`✓ Fallback extraction completed in ${extractEndTime - extractStartTime}ms`);
+      }
+    } else {
+      // Use existing extraction for non-PDF files or if Python parser disabled
+      console.log(`\n[${new Date().toISOString()}] 🔤 STEP 5: Extracting Text from File`);
+      console.log('File type for extraction:', file.type);
+      const extractStartTime = Date.now();
+      
+      text = await extractTextFromFile(buffer, file.type);
+      
+      const extractEndTime = Date.now();
+      console.log(`✓ Text extraction completed in ${extractEndTime - extractStartTime}ms`);
+    }
     
-    const extractEndTime = Date.now();
-    console.log(`✓ Text extraction completed in ${extractEndTime - extractStartTime}ms`);
-    console.log('Extracted text length:', text.length, 'characters');
-    console.log('Extracted text preview (first 500 chars):\n', text.substring(0, 500));
+    // Log extraction summary
+    console.log(`\n[${new Date().toISOString()}] ✅ Text Extraction Complete`);
+    console.log(`  Parser used: ${usedPythonParser ? 'Python (PyMuPDF)' : 'pdf-parse'}`);
+    console.log(`  Extracted text length: ${text.length} characters`);
+    console.log(`  Text preview (first 500 chars):\n${text.substring(0, 500)}`);
 
-    // Parse the resume
-    console.log(`\n[${new Date().toISOString()}] 🔍 STEP 6: Parsing Resume Text`);
-    const parseStartTime = Date.now();
+    // STEP 6: AI-Powered Parsing with Hybrid Fallback
+    let parsedData: ParsedResumeData;
     
-    const parsedData = parseResumeText(text);
-    
-    const parseEndTime = Date.now();
-    console.log(`✓ Resume parsing completed in ${parseEndTime - parseStartTime}ms`);
+    if (USE_AI_PARSER && aiParser.isAvailable()) {
+      console.log(`\n[${new Date().toISOString()}] 🤖 STEP 6: AI-Powered Resume Parsing (Optimized)`);
+      console.log('Using Watsonx Granite with token optimizations...');
+      
+      try {
+        const aiStartTime = Date.now();
+        
+        // Step 6.1: AI structuring with optimizations (caching, chunking, deduplication, smart routing)
+        console.log('  [6.1] Calling optimized AI parser...');
+        const aiParsedData = await aiParser.parseResumeOptimized(text, () => parseResumeText(text));
+        console.log('  ✓ AI parsing complete');
+        
+        // Step 6.2: Schema validation
+        console.log('  [6.2] Validating schema...');
+        const schemaValidation = validator.validateSchema(aiParsedData);
+        if (!schemaValidation.isValid) {
+          console.warn('  ⚠️  Schema validation failed:', schemaValidation.errors);
+          throw new Error('AI parsing produced invalid schema');
+        }
+        console.log('  ✓ Schema validation passed');
+        
+        // Step 6.3: Data quality validation
+        console.log('  [6.3] Validating data quality...');
+        const qualityValidation = validator.validateDataQuality(aiParsedData);
+        if (qualityValidation.warnings.length > 0) {
+          console.log('  ⚠️  Quality warnings:', qualityValidation.warnings);
+        }
+        console.log('  ✓ Quality validation complete');
+        
+        // Step 6.4: Apply corrections
+        console.log('  [6.4] Applying fallback corrections...');
+        const correctedData = validator.applyFallbackCorrections(aiParsedData, text);
+        console.log('  ✓ Corrections applied');
+        
+        // Step 6.5: Calculate confidence
+        const confidence = validator.calculateConfidence(
+          correctedData,
+          schemaValidation.errors,
+          qualityValidation.warnings
+        );
+        console.log(`  [6.5] Confidence score: ${confidence}%`);
+        
+        // Convert to standard format
+        parsedData = aiParser.convertToStandardFormat(correctedData, text);
+        parsedData.metadata = {
+          parsingMethod: 'ai_hybrid',
+          confidence,
+          warnings: qualityValidation.warnings,
+          processingTime: Date.now() - aiStartTime
+        };
+        
+        const aiEndTime = Date.now();
+        console.log(`✅ AI parsing complete in ${aiEndTime - aiStartTime}ms (confidence: ${confidence}%)`);
+        
+      } catch (aiError) {
+        console.error('❌ AI parsing failed, using rule-based fallback');
+        console.error('Error:', aiError instanceof Error ? aiError.message : String(aiError));
+        
+        // Fallback to rule-based parser
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6 (Fallback): Rule-Based Parsing`);
+        const parseStartTime = Date.now();
+        parsedData = parseResumeText(text);
+        parsedData.metadata = {
+          parsingMethod: 'rule_based_fallback',
+          confidence: 60,
+          warnings: ['AI parsing unavailable, used rule-based fallback'],
+          processingTime: Date.now() - parseStartTime
+        };
+        const parseEndTime = Date.now();
+        console.log(`✓ Rule-based parsing completed in ${parseEndTime - parseStartTime}ms`);
+      }
+    } else {
+      // AI parser not available or disabled
+      if (!USE_AI_PARSER) {
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6: Rule-Based Parsing (AI disabled)`);
+      } else {
+        console.log(`\n[${new Date().toISOString()}] 📋 STEP 6: Rule-Based Parsing (AI not configured)`);
+      }
+      
+      const parseStartTime = Date.now();
+      parsedData = parseResumeText(text);
+      parsedData.metadata = {
+        parsingMethod: 'rule_based_fallback',
+        confidence: 60,
+        warnings: [USE_AI_PARSER ? 'AI parser not configured' : 'AI parser disabled'],
+        processingTime: Date.now() - parseStartTime
+      };
+      const parseEndTime = Date.now();
+      console.log(`✓ Rule-based parsing completed in ${parseEndTime - parseStartTime}ms`);
+    }
     
     console.log(`\n[${new Date().toISOString()}] 📊 STEP 7: Parsed Data Summary`);
+    console.log('Parsing method:', parsedData.metadata?.parsingMethod || 'unknown');
+    console.log('Confidence score:', parsedData.metadata?.confidence || 'N/A');
+    console.log('Processing time:', parsedData.metadata?.processingTime || 'N/A', 'ms');
     console.log('Parsed sections:', {
       personalInfo: parsedData.parsedSections.personalInfo,
       summary: parsedData.parsedSections.summary ? 'Present' : 'None',
@@ -180,13 +365,27 @@ export async function POST(request: NextRequest) {
       educationCount: parsedData.parsedSections.education.length,
       certificationsCount: parsedData.parsedSections.certifications.length,
     });
+    if (parsedData.metadata?.warnings && parsedData.metadata.warnings.length > 0) {
+      console.log('Warnings:', parsedData.metadata.warnings);
+    }
 
     console.log(`\n[${new Date().toISOString()}] ✅ STEP 8: Returning Parsed Data`);
     console.log(`${'='.repeat(80)}`);
     console.log(`[${new Date().toISOString()}] ✅ SERVER: Resume Parse Completed Successfully`);
     console.log(`${'='.repeat(80)}\n`);
 
-    return NextResponse.json(parsedData, { headers: corsHeaders });
+    // Add metadata about which parser was used
+    const responseData = {
+      ...parsedData,
+      _debug: {
+        parserUsed: parsedData.metadata?.parsingMethod || 'unknown',
+        aiParserAvailable: aiParser.isAvailable(),
+        useAiParserFlag: USE_AI_PARSER,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    return NextResponse.json(responseData, { headers: corsHeaders });
   } catch (error) {
     const errorTimestamp = new Date().toISOString();
     console.error(`\n${'='.repeat(80)}`);
@@ -219,43 +418,94 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
     return text;
   }
 
-  // For PDF files - extract text using pdf-parse library
+  // For PDF files - extract text using pdf-parse library (v1.x)
   if (mimeType === 'application/pdf') {
-    console.log('✓ Detected as PDF - using pdf-parse library');
+    console.log('✓ Detected as PDF - using pdf-parse v1.x library');
     try {
+      // Optimize: Create Uint8Array view without copying data
       const uint8Array = new Uint8Array(buffer);
-      console.log('✓ Created Uint8Array, length:', uint8Array.length);
       
-      console.log('✓ Parsing PDF with pdf-parse...');
-      // Dynamic import for CommonJS module with ESM/CJS interop
-      const pdfParseModule = await import('pdf-parse');
-      // Handle both ESM and CJS module formats
-      const pdfParse = (pdfParseModule as any).default || pdfParseModule;
-      const data = await pdfParse(uint8Array);
+      // Fast PDF signature validation (only check first 4 bytes)
+      if (uint8Array[0] !== 0x25 || uint8Array[1] !== 0x50 ||
+          uint8Array[2] !== 0x44 || uint8Array[3] !== 0x46) {
+        throw new Error('Invalid PDF file: Missing PDF signature');
+      }
+      console.log('✓ PDF signature validated');
+      
+      console.log('✓ Parsing PDF with pdf-parse v1.x...');
+      
+      // OPTIMIZED: Convert ArrayBuffer to Node.js Buffer efficiently
+      // Buffer.from() with ArrayBuffer creates a view, not a copy (memory efficient)
+      const nodeBuffer = Buffer.from(buffer);
+      console.log('✓ Buffer ready, size:', nodeBuffer.length, 'bytes');
+      
+      // Use cached pdf-parse import for better performance
+      const pdfParse = await getPdfParse();
+      
+      // Parse PDF - v1.x accepts Buffer directly and returns a promise
+      const parseStartTime = Date.now();
+      const result = await pdfParse(nodeBuffer);
+      const parseEndTime = Date.now();
+      
+      console.log(`✓ PDF parsing completed in ${parseEndTime - parseStartTime}ms`);
       
       console.log('✓ PDF parsed successfully');
-      console.log('  - Pages:', data.numpages);
-      console.log('  - Text length:', data.text.length, 'characters');
-      console.log('  - Info:', data.info);
+      console.log('  - Total pages:', result.numpages);
+      console.log('  - Text length:', result.text.length, 'characters');
+      console.log('  - Raw text preview (first 500 chars):', result.text.substring(0, 500));
       
-      if (!data.text || data.text.trim().length === 0) {
-        console.error('⚠️ PDF parsed but no text extracted');
-        return 'Unable to extract text from PDF. The PDF may be image-based or encrypted. Please try uploading as TXT format.';
+      // OPTIMIZED VALIDATION: Ensure extracted text is valid and meaningful
+      const extractedText = result.text?.trim() || '';
+      const textLength = extractedText.length;
+      const minValidTextLength = 100; // Minimum characters for a valid resume
+      
+      // Fast validation checks
+      if (textLength === 0) {
+        log.error('❌ VALIDATION FAILED: PDF parsed but no text extracted');
+        throw new Error('PDF contains no extractable text. The PDF may be image-based or scanned.');
       }
       
-      console.log('✅ PDF extraction complete, text length:', data.text.length);
-      console.log('Text preview (first 500 chars):', data.text.substring(0, 500));
-      return data.text;
+      if (textLength < minValidTextLength) {
+        log.error(`❌ VALIDATION FAILED: Extracted text too short (${textLength} chars, minimum ${minValidTextLength})`);
+        log.debug('Extracted content:', extractedText);
+        throw new Error(`PDF text extraction incomplete. Only ${textLength} characters extracted.`);
+      }
+      
+      // Optimized: Single toLowerCase() call and early exit
+      const lowerText = extractedText.toLowerCase();
+      const errorIndicators = ['error parsing', 'corrupted', 'password-protected'];
+      for (const indicator of errorIndicators) {
+        if (lowerText.includes(indicator)) {
+          log.error('❌ VALIDATION FAILED: Extracted text appears to be an error message');
+          log.debug('Suspicious content:', extractedText.substring(0, 200));
+          throw new Error('PDF text extraction returned invalid content');
+        }
+      }
+      
+      log.info('✅ PDF extraction complete and validated');
+      log.debug(`   - Extracted ${textLength} characters`);
+      log.debug(`   - Contains ${extractedText.split(/\s+/).length} words`);
+      log.debug(`   - Contains ${extractedText.split(/\n/).length} lines`);
+      
+      return extractedText;
     } catch (error) {
       console.error('❌ PDF parsing error:', error);
       console.error('Error details:', error instanceof Error ? error.message : String(error));
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      return 'Error parsing PDF file. The PDF may be corrupted or password-protected. Please try uploading as TXT format.';
+      
+      // CRITICAL: Throw error instead of returning error message string
+      // This ensures the error is properly handled and not treated as valid resume text
+      throw new Error(
+        error instanceof Error 
+          ? `PDF parsing failed: ${error.message}` 
+          : 'PDF parsing failed: Unknown error'
+      );
     }
   }
 
   // For DOCX files - extract text from XML
   if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    console.log('✓ Detected as DOCX - using XML extraction');
     try {
       const uint8Array = new Uint8Array(buffer);
       const decoder = new TextDecoder('utf-8', { fatal: false });
@@ -270,19 +520,73 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
         }).join(' ');
       }
       
-      return text.trim() || 'Unable to extract text from DOCX. Please try uploading as TXT format.';
+      const extractedText = text.trim();
+      const minValidTextLength = 100;
+      
+      if (extractedText.length === 0) {
+        console.error('❌ DOCX parsed but no text extracted');
+        throw new Error('DOCX contains no extractable text');
+      }
+      
+      if (extractedText.length < minValidTextLength) {
+        console.error(`❌ DOCX text too short (${extractedText.length} chars)`);
+        throw new Error(`DOCX text extraction incomplete. Only ${extractedText.length} characters extracted.`);
+      }
+      
+      console.log('✅ DOCX extraction complete and validated');
+      console.log(`   - Extracted ${extractedText.length} characters`);
+      return extractedText;
     } catch (error) {
-      console.error('DOCX parsing error:', error);
-      return 'Error parsing DOCX file. Please try uploading as TXT format.';
+      console.error('❌ DOCX parsing error:', error);
+      throw new Error(
+        error instanceof Error 
+          ? `DOCX parsing failed: ${error.message}` 
+          : 'DOCX parsing failed: Unknown error'
+      );
     }
   }
 
-  return 'Unsupported file format. Please upload TXT, PDF, or DOCX file.';
+  throw new Error('Unsupported file format. Please upload TXT, PDF, or DOCX file.');
 }
 
 function parseResumeText(text: string): ParsedResumeData {
   console.log(`\n[${new Date().toISOString()}] 📝 parseResumeText: Starting resume parsing`);
   console.log('Input text length:', text.length, 'characters');
+  
+  // CRITICAL VALIDATION: Ensure input text is valid resume content
+  const minValidTextLength = 100;
+  const trimmedText = text.trim();
+  
+  if (trimmedText.length === 0) {
+    console.error('❌ VALIDATION FAILED: Empty text provided to parser');
+    throw new Error('Cannot parse empty resume text');
+  }
+  
+  if (trimmedText.length < minValidTextLength) {
+    console.error(`❌ VALIDATION FAILED: Text too short (${trimmedText.length} chars, minimum ${minValidTextLength})`);
+    throw new Error(`Resume text too short for parsing: ${trimmedText.length} characters`);
+  }
+  
+  // Check if text looks like an error message (defensive check)
+  const errorIndicators = [
+    'error parsing',
+    'unable to extract',
+    'corrupted',
+    'password-protected',
+    'unsupported file format',
+    'please try uploading'
+  ];
+  
+  const lowerText = trimmedText.toLowerCase();
+  for (const indicator of errorIndicators) {
+    if (lowerText.includes(indicator)) {
+      console.error('❌ VALIDATION FAILED: Input appears to be an error message, not resume content');
+      console.error('Suspicious content:', trimmedText.substring(0, 200));
+      throw new Error('Invalid resume content: appears to be an error message');
+    }
+  }
+  
+  console.log('✅ Input validation passed');
   
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   console.log('✓ Split into', lines.length, 'non-empty lines');
