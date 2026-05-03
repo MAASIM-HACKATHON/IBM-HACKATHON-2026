@@ -26,9 +26,6 @@ dist/
 !01-documentations/
 !01-documentations/ats-ai-integration-plan/
 !01-documentations/ats-ai-integration-plan/**
-!01-documentations/ai-agent-guide/
-!01-documentations/ai-agent-guide/**
-
 
 # =========================
 # KEEP IMPORTANT FILES

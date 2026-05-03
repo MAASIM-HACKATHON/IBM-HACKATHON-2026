@@ -9,7 +9,7 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+        primary: "bg-[#2C4C82] text-white hover:bg-[#2C4C82]/90 active:bg-[#2C4C82]/80 dark:bg-[#2C4C82] dark:hover:bg-[#2C4C82]/90",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         danger:
@@ -21,13 +21,16 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        md: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        lg: "h-9 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
-        icon: "size-8",
+        // Task 23.1: Increase touch target sizes to 44px minimum on mobile
+        // Requirement 13.6: Touch target sizes must be at least 44 pixels on mobile
+        // Desktop sizes remain the same, mobile gets min-h-[44px] for accessibility
+        sm: "h-7 min-h-[44px] md:min-h-0 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        md: "h-8 min-h-[44px] md:min-h-0 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
+        lg: "h-9 min-h-[44px] md:min-h-0 gap-1.5 px-3 has-data-[icon=inline-end]:pr-2.5 has-data-[icon=inline-start]:pl-2.5",
+        icon: "size-8 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0",
         "icon-sm":
-          "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
-        "icon-lg": "size-9",
+          "size-7 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-lg": "size-9 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0",
       },
     },
     defaultVariants: {

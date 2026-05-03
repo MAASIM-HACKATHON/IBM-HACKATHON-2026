@@ -135,6 +135,8 @@ export function generateFormattedResume(
 
   // Footer
   resume += '═'.repeat(60) + '\n';
+  resume += `Generated on ${new Date().toLocaleDateString()} by IBM Watsonx AI Resume Builder\n`;
+  resume += '═'.repeat(60) + '\n';
 
   return resume;
 }

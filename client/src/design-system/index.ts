@@ -6,4 +6,5 @@
 
 export * from './tokens';
 export * from './utils';
+export * from './animations';
 export { cn } from '@/lib/utils';
