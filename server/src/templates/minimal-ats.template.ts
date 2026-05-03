@@ -57,7 +57,7 @@ interface ResumePDFTemplateProps {
   isOptimized?: boolean;
 }
 
-export function generateResumePDFTemplate({ resumeData, isOptimized = false }: ResumePDFTemplateProps): string {
+export function generateMinimalATSTemplate({ resumeData, isOptimized = false }: ResumePDFTemplateProps): string {
   const { parsedSections } = resumeData;
   const personalInfo = parsedSections.personalInfo;
 
@@ -67,7 +67,7 @@ export function generateResumePDFTemplate({ resumeData, isOptimized = false }: R
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${personalInfo?.name || 'Resume'} - ${isOptimized ? 'ATS Optimized' : 'Original'}</title>
+  <title>${personalInfo?.name || 'Resume'} - Minimal ATS</title>
   <style>
     * {
       margin: 0;
@@ -81,10 +81,10 @@ export function generateResumePDFTemplate({ resumeData, isOptimized = false }: R
     }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: Arial, Helvetica, sans-serif;
       font-size: 11pt;
       line-height: 1.5;
-      color: #1a1a1a;
+      color: #000000;
       background: white;
     }
 
@@ -465,7 +465,7 @@ export function generateResumePDFTemplate({ resumeData, isOptimized = false }: R
 
     <!-- Footer -->
     <div class="footer">
-      <p>${isOptimized ? 'ATS-Optimized Resume' : 'Professional Resume'} • Generated with IBM Watsonx AI</p>
+      <p>Minimal ATS-Friendly Resume • Generated with IBM Watsonx AI</p>
     </div>
   </div>
 </body>

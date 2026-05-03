@@ -15,6 +15,7 @@ function ResumeBuilderPage(): ReactElement {
   const resumeBuilder = useResumeBuilder();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [viewMode, setViewMode] = useState<'split' | 'original' | 'optimized'>('split');
+  const [selectedTemplate, setSelectedTemplate] = useState<'minimal' | 'professional'>('minimal');
   const [lastSaved, setLastSaved] = useState<Date | null>(() => {
     const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
     return timestamp ? new Date(timestamp) : null;
@@ -287,6 +288,8 @@ function ResumeBuilderPage(): ReactElement {
                   onGenerateFullCV={handleGenerateFullCV}
                   onRunATSAnalysis={handleRunATSAnalysis}
                   onGenerateEmail={() => setShowEmailModal(true)}
+                  selectedTemplate={selectedTemplate}
+                  onTemplateChange={setSelectedTemplate}
                 />
               )}
             </div>
@@ -300,6 +303,7 @@ function ResumeBuilderPage(): ReactElement {
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               uploadedFile={resumeBuilder.uploadedFile?.file}
+              selectedTemplate={selectedTemplate}
             />
           )}
 

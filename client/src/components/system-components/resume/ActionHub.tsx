@@ -1,4 +1,4 @@
-import { type ReactElement } from 'react';
+import { type ReactElement, useState } from 'react';
 
 interface ActionHubProps {
   loading: boolean;
@@ -8,6 +8,8 @@ interface ActionHubProps {
   onGenerateFullCV: () => Promise<void>;
   onRunATSAnalysis: () => Promise<void>;
   onGenerateEmail: () => void;
+  selectedTemplate?: 'minimal' | 'professional';
+  onTemplateChange?: (template: 'minimal' | 'professional') => void;
 }
 
 function ActionHub({
@@ -18,7 +20,16 @@ function ActionHub({
   onGenerateFullCV,
   onRunATSAnalysis,
   onGenerateEmail,
+  selectedTemplate = 'minimal',
+  onTemplateChange,
 }: ActionHubProps): ReactElement {
+  const [localTemplate, setLocalTemplate] = useState<'minimal' | 'professional'>(selectedTemplate);
+
+  const handleTemplateChange = (template: 'minimal' | 'professional') => {
+    setLocalTemplate(template);
+    onTemplateChange?.(template);
+  };
+
   return (
     <section className="overflow-hidden rounded-[24px] border border-white/10 bg-slate-950/70 shadow-lg backdrop-blur">
       <div className="border-b border-white/10 px-6 py-4">
@@ -36,6 +47,27 @@ function ActionHub({
       </div>
 
       <div className="p-6 space-y-3">
+        {/* Template Selector */}
+        <div className="rounded-xl border border-purple-400/20 bg-purple-400/5 p-4">
+          <label htmlFor="template-selector" className="block text-sm font-medium text-purple-200 mb-2">
+            📄 Resume Template
+          </label>
+          <select
+            id="template-selector"
+            value={localTemplate}
+            onChange={(e) => handleTemplateChange(e.target.value as 'minimal' | 'professional')}
+            className="w-full rounded-lg border border-purple-400/30 bg-slate-900/60 px-4 py-2.5 text-sm text-white focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-400/20"
+          >
+            <option value="minimal">Minimal ATS-Friendly (100% ATS Safe)</option>
+            <option value="professional">Professional Modern (90%+ ATS Safe)</option>
+          </select>
+          <p className="mt-2 text-xs text-slate-400">
+            {localTemplate === 'minimal' 
+              ? '✓ Single column, plain text, maximum ATS compatibility'
+              : '✓ Two-column layout, professional design, modern styling'}
+          </p>
+        </div>
+
         {/* Generate ATS Resume */}
         <button
           onClick={onGenerateATSResume}

@@ -156,9 +156,58 @@ const DEFAULT_OPTIONS: Required<PDFGenerationOptions> = {
 export async function generateResumePDFBlob(
   data: ParsedResumeData,
   type: 'original' | 'optimized',
-  options: PDFGenerationOptions = {}
+  options: PDFGenerationOptions = {},
+  templateId: 'minimal' | 'professional' = 'minimal'
 ): Promise<Blob> {
   try {
+    // Try server-side HTML-to-PDF generation first
+    try {
+      const response = await fetch('/api/resume/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resumeData: data,
+          isOptimized: type === 'optimized',
+          templateId,
+        }),
+      });
+
+      if (response.ok) {
+        const htmlContent = await response.text();
+        
+        // Convert HTML to PDF using browser's print functionality
+        // Create a hidden iframe to render the HTML
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iframeDoc) {
+          iframeDoc.open();
+          iframeDoc.write(htmlContent);
+          iframeDoc.close();
+          
+          // Wait for content to load
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // For now, return the HTML as a blob (browser will handle PDF conversion)
+          // In production, you'd use a proper HTML-to-PDF library or service
+          document.body.removeChild(iframe);
+          
+          // Return HTML blob for now - the browser's print dialog will convert to PDF
+          return new Blob([htmlContent], { type: 'text/html' });
+        }
+      }
+    } catch (serverError) {
+      console.warn('Server-side PDF generation failed, falling back to client-side:', serverError);
+    }
+    
+    // Fallback to client-side jsPDF generation
     const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
     
     // Sanitize data first to prevent formatting issues

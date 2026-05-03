@@ -16,6 +16,7 @@ interface ResumePreviewProps {
   viewMode: 'split' | 'original' | 'optimized';
   onViewModeChange: (mode: 'split' | 'original' | 'optimized') => void;
   uploadedFile?: File; // Original uploaded PDF file
+  selectedTemplate?: 'minimal' | 'professional';
 }
 
 function ResumePreview({
@@ -24,6 +25,7 @@ function ResumePreview({
   viewMode,
   onViewModeChange,
   uploadedFile,
+  selectedTemplate = 'minimal',
 }: ResumePreviewProps): ReactElement {
   // PDF state management
   const [originalPdfUrl, setOriginalPdfUrl] = useState<string | null>(null);
@@ -76,7 +78,7 @@ function ResumePreview({
         rawText: generatedResume.generatedResume,
       };
 
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized', {}, selectedTemplate);
       const url = createPDFBlobUrl(blob);
       setOptimizedPdfUrl(url);
       toast.success('Optimized PDF generated');
@@ -87,7 +89,7 @@ function ResumePreview({
     } finally {
       setIsGeneratingOptimized(false);
     }
-  }, [originalResume, generatedResume]);
+  }, [originalResume, generatedResume, selectedTemplate]);
 
   // Generate PDFs on mount or data change
   useEffect(() => {
@@ -119,7 +121,7 @@ function ResumePreview({
     if (!originalResume) return;
 
     try {
-      const blob = await generateResumePDFBlob(originalResume, 'original');
+      const blob = await generateResumePDFBlob(originalResume, 'original', {}, selectedTemplate);
       const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_Original.pdf`;
       downloadPDFBlob(blob, filename);
     } catch (error) {
@@ -135,7 +137,7 @@ function ResumePreview({
         ...originalResume,
         rawText: generatedResume.generatedResume,
       };
-      const blob = await generateResumePDFBlob(optimizedData, 'optimized');
+      const blob = await generateResumePDFBlob(optimizedData, 'optimized', {}, selectedTemplate);
       const filename = `${originalResume.parsedSections.personalInfo?.name || 'Resume'}_ATS_Optimized.pdf`;
       downloadPDFBlob(blob, filename);
     } catch (error) {
