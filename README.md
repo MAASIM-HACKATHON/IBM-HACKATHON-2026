@@ -2,9 +2,9 @@
 
 ## Project Name and Short Description
 
-### Smart Email Composer
+### AI-Powered Professional Tools
 
-Smart Email Composer is an AI-powered web application that helps users turn rough notes, drafts, and message ideas into polished professional emails. It is built for IBM Hackathon 2026 and uses IBM watsonx.ai Granite models to support smarter email generation and content analysis.
+AI-Powered Professional Tools is an AI-powered web application that helps users turn rough notes, drafts, and message ideas into polished professional emails. It is built for IBM Hackathon 2026 and uses IBM watsonx.ai Granite models to support smarter email generation and content analysis.
 
 ## Demo Video Link
 
