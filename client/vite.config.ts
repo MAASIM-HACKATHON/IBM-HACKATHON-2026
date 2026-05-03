@@ -247,32 +247,4 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  build: {
-    // Requirement 19.6: Configure asset caching with appropriate cache headers
-    rollupOptions: {
-      output: {
-        // Enable asset hashing for cache busting
-        assetFileNames: (assetInfo) => {
-          // Organize assets by type with content hash
-          const info = assetInfo.name?.split('.') || [];
-          const ext = info[info.length - 1];
-          
-          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext || '')) {
-            return `assets/images/[name]-[hash][extname]`;
-          }
-          if (/woff2?|ttf|otf|eot/i.test(ext || '')) {
-            return `assets/fonts/[name]-[hash][extname]`;
-          }
-          return `assets/[name]-[hash][extname]`;
-        },
-        // Chunk naming with content hash
-        chunkFileNames: 'assets/js/[name]-[hash].js',
-        entryFileNames: 'assets/js/[name]-[hash].js',
-      },
-    },
-    // Enable source maps for production debugging
-    sourcemap: true,
-    // Optimize chunk size
-    chunkSizeWarningLimit: 1000,
-  },
 }));
