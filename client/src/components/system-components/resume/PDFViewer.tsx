@@ -387,7 +387,6 @@ function PDFViewer({
           // PDF Document
           <div className="flex justify-center p-4">
             <Document
-              key={pdfUrl || pdfFile?.name || 'pdf-document'}
               file={pdfSource}
               onLoadSuccess={handleLoadSuccess}
               onLoadError={handleLoadError}

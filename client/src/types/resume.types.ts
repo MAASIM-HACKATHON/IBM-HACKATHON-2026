@@ -6,21 +6,12 @@
 import type { CandidateResume, ATSResult } from '../services/atsService';
 
 // Resume Generation Types
-export interface ATSInsights {
-  keywords: string[];
-  gaps: string[];
-  strengths: string[];
-  score: number;
-  prioritizedSkills: string[];
-}
-
 export interface ResumeGenerationRequest {
   profileData: CandidateResume;
   jobDescription: string;
   resumeType: 'ats-optimized' | 'full-cv';
   targetRole?: string;
   additionalInstructions?: string;
-  atsInsights?: ATSInsights; // Optional - backend will compute if missing
 }
 
 export interface ResumeGenerationResponse {
@@ -29,7 +20,6 @@ export interface ResumeGenerationResponse {
   suggestions: string[];
   weakSections: string[];
   timestamp: string;
-  insights?: ATSInsights; // Returned from ATS generation
 }
 
 // Job Description Analysis Types
@@ -146,12 +136,8 @@ export interface ResumeBuilderState {
   uploadedFile?: UploadedFile;
   parsedData?: ParsedResumeData;
   jobDescription: string;
-  jobTitle?: string; // NEW: User-provided job title
   jobAnalysis?: JobDescriptionAnalysis;
-  generatedResume?: ResumeGenerationResponse; // Keep for backward compatibility
-  atsResume?: ResumeGenerationResponse; // ATS-Optimized Resume
-  fullCV?: ResumeGenerationResponse; // Full CV
-  atsInsights?: ATSInsights; // ATS insights for CV generation
+  generatedResume?: ResumeGenerationResponse;
   atsScore?: ATSScoreResult;
   loading: boolean;
   error: string | null;
