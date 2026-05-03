@@ -75,6 +75,12 @@ export async function POST(request: NextRequest) {
     // Handle Full CV generation with new CV Generator Service
     if (resumeType === 'full-cv') {
       try {
+        console.log('🔥 API Route: Full CV generation requested');
+        console.log('   Has profileData:', !!profileData);
+        console.log('   Has jobDescription:', !!jobDescription);
+        console.log('   Has atsInsights:', !!atsInsights);
+        console.log('   Target role:', targetRole || 'not provided');
+        
         const cvGenerator = new CVGeneratorService();
         const cv = await cvGenerator.generateFullCV({
           profileData,
@@ -83,15 +89,25 @@ export async function POST(request: NextRequest) {
           targetRole
         });
         
-        return NextResponse.json({
+        console.log('🔥 API Route: CV generation complete');
+        console.log('   CV length:', cv.length);
+        console.log('   CV first 500 chars:', cv.substring(0, 500));
+        console.log('   CV last 500 chars:', cv.substring(Math.max(0, cv.length - 500)));
+        
+        const response = {
           generatedResume: cv,
           format: 'plain',
           suggestions: ['CV enhanced with AI expansion and personalization'],
           weakSections: [],
           timestamp: new Date().toISOString()
-        }, { headers: corsHeaders });
+        };
+        
+        console.log('🔥 API Route: Sending response to frontend');
+        console.log('   Response generatedResume length:', response.generatedResume.length);
+        
+        return NextResponse.json(response, { headers: corsHeaders });
       } catch (error) {
-        console.error('CV generation error:', error);
+        console.error('❌ CV generation error:', error);
         // Fallback to rule-based generation
         const fallbackCV = generateResumeContent(
           profileData,
@@ -101,6 +117,9 @@ export async function POST(request: NextRequest) {
           additionalInstructions,
           atsInsights
         );
+        
+        console.log('⚠️  API Route: Using fallback CV');
+        console.log('   Fallback CV length:', fallbackCV.length);
         
         return NextResponse.json({
           generatedResume: fallbackCV,

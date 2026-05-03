@@ -270,9 +270,11 @@ function ResumeBuilderPage(): ReactElement {
               {resumeBuilder.parsedData && (
                 <JobDescriptionSection
                   jobDescription={resumeBuilder.jobDescription}
+                  jobTitle={resumeBuilder.jobTitle}
                   jobAnalysis={resumeBuilder.jobAnalysis}
                   loading={resumeBuilder.loading}
                   onJobDescriptionChange={resumeBuilder.setJobDescription}
+                  onJobTitleChange={resumeBuilder.setJobTitle}
                   onAnalyze={handleAnalyzeJD}
                 />
               )}

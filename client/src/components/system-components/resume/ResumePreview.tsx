@@ -1,4 +1,4 @@
-import { type ReactElement, useState, useEffect, useCallback } from 'react';
+import { type ReactElement, useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import type { ParsedResumeData, ResumeGenerationResponse } from '../../../types/resume.types';
 import PDFViewer from './PDFViewer';
@@ -40,9 +40,39 @@ function ResumePreview({
   const [atsError, setAtsError] = useState<string | null>(null);
   const [cvError, setCvError] = useState<string | null>(null);
 
-  // Determine which resume to show based on what's available
-  const displayedResume = atsResume || fullCV || generatedResume;
-  const resumeType = atsResume ? 'ats' : fullCV ? 'cv' : 'ats';
+  // Track previous content to detect changes
+  const prevAtsContentRef = useRef<string | null>(null);
+  const prevCvContentRef = useRef<string | null>(null);
+
+  // Determine which resume to show based on view mode
+  let displayedResume: ResumeGenerationResponse | undefined;
+  let resumeType: 'ats' | 'cv' = 'ats';
+
+  if (viewMode === 'ats' && atsResume) {
+    displayedResume = atsResume;
+    resumeType = 'ats';
+  } else if (viewMode === 'cv' && fullCV) {
+    displayedResume = fullCV;
+    resumeType = 'cv';
+  } else if (viewMode === 'split') {
+    // In split view, show the most recently generated on the right
+    displayedResume = fullCV || atsResume || generatedResume;
+    resumeType = fullCV ? 'cv' : 'ats';
+  } else {
+    // Fallback: show whatever is available
+    displayedResume = atsResume || fullCV || generatedResume;
+    resumeType = atsResume ? 'ats' : fullCV ? 'cv' : 'ats';
+  }
+
+  // 🔥 DEBUG: Log what's being displayed
+  console.log('🔥 RESUME PREVIEW: Determining which resume to display');
+  console.log('   View mode:', viewMode);
+  console.log('   Has atsResume:', !!atsResume);
+  console.log('   Has fullCV:', !!fullCV);
+  console.log('   Has generatedResume:', !!generatedResume);
+  console.log('   Displaying:', resumeType);
+  console.log('   Content length:', displayedResume?.generatedResume?.length || 0);
+  console.log('   Content preview:', displayedResume?.generatedResume?.substring(0, 200));
 
   // Generate original PDF
   const generateOriginalPDF = useCallback(async () => {
@@ -77,53 +107,97 @@ function ResumePreview({
   const generateAtsPDF = useCallback(async () => {
     if (!originalResume || !atsResume) return;
 
+    console.log('🔥 PDF GENERATION: generateAtsPDF called');
+    console.log('   atsResume.generatedResume length:', atsResume.generatedResume.length);
+    console.log('   atsResume.generatedResume first 500 chars:', atsResume.generatedResume.substring(0, 500));
+
     try {
       setIsGeneratingAts(true);
       setAtsError(null);
+
+      // Store old URL to revoke after new one is set
+      const oldUrl = atsPdfUrl;
 
       const atsData: ParsedResumeData = {
         ...originalResume,
         rawText: atsResume.generatedResume,
       };
 
+      console.log('🔥 PDF GENERATION: Creating ATS PDF blob...');
       const blob = await generateResumePDFBlob(atsData, 'optimized');
+      console.log('   Blob size:', blob.size, 'bytes');
+      
       const url = createPDFBlobUrl(blob);
+      console.log('   Blob URL created:', url);
+      
       setAtsPdfUrl(url);
+      
+      // Revoke old URL after new one is set
+      if (oldUrl) {
+        setTimeout(() => {
+          console.log('🔥 PDF GENERATION: Revoking old ATS URL:', oldUrl);
+          revokePDFBlobUrl(oldUrl);
+        }, 100);
+      }
+      
       toast.success('ATS Resume PDF generated');
+      console.log('✅ PDF GENERATION: ATS PDF generated successfully');
     } catch (error) {
-      console.error('Error generating ATS PDF:', error);
+      console.error('❌ PDF GENERATION: Error generating ATS PDF:', error);
       setAtsError('Failed to generate ATS PDF');
       toast.error('Failed to generate ATS PDF');
     } finally {
       setIsGeneratingAts(false);
     }
-  }, [originalResume, atsResume]);
+  }, [originalResume, atsResume, atsPdfUrl]);
 
   // Generate CV PDF
   const generateCvPDF = useCallback(async () => {
     if (!originalResume || !fullCV) return;
 
+    console.log('🔥 PDF GENERATION: generateCvPDF called');
+    console.log('   fullCV.generatedResume length:', fullCV.generatedResume.length);
+    console.log('   fullCV.generatedResume first 500 chars:', fullCV.generatedResume.substring(0, 500));
+
     try {
       setIsGeneratingCv(true);
       setCvError(null);
+
+      // Store old URL to revoke after new one is set
+      const oldUrl = cvPdfUrl;
 
       const cvData: ParsedResumeData = {
         ...originalResume,
         rawText: fullCV.generatedResume,
       };
 
+      console.log('🔥 PDF GENERATION: Creating PDF blob...');
       const blob = await generateResumePDFBlob(cvData, 'optimized');
+      console.log('   Blob size:', blob.size, 'bytes');
+      
       const url = createPDFBlobUrl(blob);
+      console.log('   Blob URL created:', url);
+      
       setCvPdfUrl(url);
+      
+      // Revoke old URL after new one is set
+      if (oldUrl) {
+        setTimeout(() => {
+          console.log('🔥 PDF GENERATION: Revoking old URL:', oldUrl);
+          revokePDFBlobUrl(oldUrl);
+        }, 100);
+      }
+      
       toast.success('Full CV PDF generated');
+      console.log('✅ PDF GENERATION: CV PDF generated successfully');
     } catch (error) {
-      console.error('Error generating CV PDF:', error);
+      console.error('❌ PDF GENERATION: Error generating CV PDF:', error);
       setCvError('Failed to generate CV PDF');
       toast.error('Failed to generate CV PDF');
     } finally {
       setIsGeneratingCv(false);
     }
-  }, [originalResume, fullCV]);
+  }, [originalResume, fullCV, cvPdfUrl]);
 
   // Generate PDFs on mount or data change
   useEffect(() => {
@@ -132,17 +206,45 @@ function ResumePreview({
     }
   }, [originalResume, originalPdfUrl, isGeneratingOriginal, generateOriginalPDF]);
 
+  // Regenerate ATS PDF when atsResume content changes (only if no PDF exists or content changed)
   useEffect(() => {
-    if (originalResume && atsResume && !atsPdfUrl && !isGeneratingAts) {
-      generateAtsPDF();
+    const currentContent = atsResume?.generatedResume;
+    const hasContentChanged = currentContent && currentContent !== prevAtsContentRef.current;
+    
+    if (originalResume && atsResume && !isGeneratingAts) {
+      // Generate if no PDF exists OR content has changed
+      if (!atsPdfUrl || hasContentChanged) {
+        console.log('🔥 useEffect: Generating ATS PDF', {
+          noPdfExists: !atsPdfUrl,
+          contentChanged: hasContentChanged,
+          prevLength: prevAtsContentRef.current?.length || 0,
+          currentLength: currentContent?.length || 0
+        });
+        generateAtsPDF();
+        prevAtsContentRef.current = currentContent || null;
+      }
     }
-  }, [originalResume, atsResume, atsPdfUrl, isGeneratingAts, generateAtsPDF]);
+  }, [originalResume, atsResume?.generatedResume, atsPdfUrl, isGeneratingAts]); // Watch for content changes
 
+  // Regenerate CV PDF when fullCV content changes (only if no PDF exists or content changed)
   useEffect(() => {
-    if (originalResume && fullCV && !cvPdfUrl && !isGeneratingCv) {
-      generateCvPDF();
+    const currentContent = fullCV?.generatedResume;
+    const hasContentChanged = currentContent && currentContent !== prevCvContentRef.current;
+    
+    if (originalResume && fullCV && !isGeneratingCv) {
+      // Generate if no PDF exists OR content has changed
+      if (!cvPdfUrl || hasContentChanged) {
+        console.log('🔥 useEffect: Generating CV PDF', {
+          noPdfExists: !cvPdfUrl,
+          contentChanged: hasContentChanged,
+          prevLength: prevCvContentRef.current?.length || 0,
+          currentLength: currentContent?.length || 0
+        });
+        generateCvPDF();
+        prevCvContentRef.current = currentContent || null;
+      }
     }
-  }, [originalResume, fullCV, cvPdfUrl, isGeneratingCv, generateCvPDF]);
+  }, [originalResume, fullCV?.generatedResume, cvPdfUrl, isGeneratingCv]); // Watch for content changes
 
   // Cleanup blob URLs on unmount
   useEffect(() => {
@@ -345,6 +447,7 @@ function ResumePreview({
                   </div>
                 ) : atsPdfUrl ? (
                   <PDFViewer
+                    key={`split-ats-${atsPdfUrl}`}
                     pdfUrl={atsPdfUrl}
                     title="ATS-Optimized Resume"
                     subtitle="Optimized for applicant tracking systems"
@@ -379,6 +482,7 @@ function ResumePreview({
                   </div>
                 ) : cvPdfUrl ? (
                   <PDFViewer
+                    key={`split-cv-${cvPdfUrl}`}
                     pdfUrl={cvPdfUrl}
                     title="Full CV"
                     subtitle="Comprehensive curriculum vitae"
@@ -467,6 +571,7 @@ function ResumePreview({
               </div>
             ) : atsPdfUrl ? (
               <PDFViewer
+                key={`ats-pdf-${atsPdfUrl}`}
                 pdfUrl={atsPdfUrl}
                 title="ATS-Optimized Resume"
                 subtitle="Optimized for applicant tracking systems"
@@ -510,6 +615,7 @@ function ResumePreview({
               </div>
             ) : cvPdfUrl ? (
               <PDFViewer
+                key={`cv-pdf-${cvPdfUrl}`}
                 pdfUrl={cvPdfUrl}
                 title="Full CV"
                 subtitle="Comprehensive curriculum vitae"

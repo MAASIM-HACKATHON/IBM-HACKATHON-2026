@@ -146,6 +146,7 @@ export interface ResumeBuilderState {
   uploadedFile?: UploadedFile;
   parsedData?: ParsedResumeData;
   jobDescription: string;
+  jobTitle?: string; // NEW: User-provided job title
   jobAnalysis?: JobDescriptionAnalysis;
   generatedResume?: ResumeGenerationResponse; // Keep for backward compatibility
   atsResume?: ResumeGenerationResponse; // ATS-Optimized Resume
