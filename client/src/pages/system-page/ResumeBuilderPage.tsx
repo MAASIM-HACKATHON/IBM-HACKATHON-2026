@@ -14,7 +14,7 @@ const DRAFT_TIMESTAMP_KEY = 'resume-builder-draft-timestamp';
 function ResumeBuilderPage(): ReactElement {
   const resumeBuilder = useResumeBuilder();
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [viewMode, setViewMode] = useState<'split' | 'original' | 'optimized'>('split');
+  const [viewMode, setViewMode] = useState<'split' | 'original' | 'ats' | 'cv'>('split');
   const [lastSaved, setLastSaved] = useState<Date | null>(() => {
     const timestamp = localStorage.getItem(DRAFT_TIMESTAMP_KEY);
     return timestamp ? new Date(timestamp) : null;
@@ -293,10 +293,12 @@ function ResumeBuilderPage(): ReactElement {
           </div>
 
           {/* Resume Preview Section - Full Width */}
-          {resumeBuilder.generatedResume && (
+          {(resumeBuilder.atsResume || resumeBuilder.fullCV || resumeBuilder.generatedResume) && (
             <ResumePreview
               originalResume={resumeBuilder.parsedData}
-              generatedResume={resumeBuilder.generatedResume}
+              generatedResume={resumeBuilder.generatedResume!}
+              atsResume={resumeBuilder.atsResume}
+              fullCV={resumeBuilder.fullCV}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               uploadedFile={resumeBuilder.uploadedFile?.file}

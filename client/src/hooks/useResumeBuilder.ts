@@ -310,7 +310,9 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
 
       setState(prev => ({
         ...prev,
-        generatedResume: response,
+        atsResume: response, // Store in atsResume
+        generatedResume: response, // Keep for backward compatibility
+        atsInsights: response.insights, // Store insights for CV generation
         loading: false,
         currentStep: 'results',
       }));
@@ -330,7 +332,8 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
 
       setState(prev => ({
         ...prev,
-        generatedResume: fallbackResume,
+        atsResume: fallbackResume, // Store in atsResume
+        generatedResume: fallbackResume, // Keep for backward compatibility
         loading: false,
         currentStep: 'results',
       }));
@@ -351,11 +354,13 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
         profileData: state.parsedData,
         jobDescription: state.jobDescription,
         resumeType: 'full-cv',
+        atsInsights: state.atsInsights, // Pass insights if available (backend will compute if missing)
       });
 
       setState(prev => ({
         ...prev,
-        generatedResume: response,
+        fullCV: response, // Store in fullCV
+        generatedResume: response, // Keep for backward compatibility
         loading: false,
         currentStep: 'results',
       }));
@@ -375,12 +380,13 @@ export function useResumeBuilder(): UseResumeBuilderReturn {
 
       setState(prev => ({
         ...prev,
-        generatedResume: fallbackCV,
+        fullCV: fallbackCV, // Store in fullCV
+        generatedResume: fallbackCV, // Keep for backward compatibility
         loading: false,
         currentStep: 'results',
       }));
     }
-  }, [state.parsedData, state.jobDescription]);
+  }, [state.parsedData, state.jobDescription, state.atsInsights]);
 
   // Run ATS Analysis
   const runATSAnalysis = useCallback(async () => {
