@@ -1,6 +1,6 @@
 // Email Types and Interfaces
 
-export type EmailTone = 'formal' | 'friendly' | 'urgent' | 'casual';
+export type EmailTone = 'formal' | 'professional' | 'friendly' | 'enthusiastic' | 'urgent' | 'casual';
 export type EmailAction = 'generate' | 'shorten' | 'expand' | 'fix_grammar' | 'generate_subject';
 
 export interface EmailGenerationRequest {
