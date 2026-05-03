@@ -98,41 +98,74 @@ function readTextFile(file: File): Promise<string> {
 }
 
 /**
- * Extract text from PDF files
- * Note: This is a basic implementation. For production, consider using pdf.js or similar library
+ * Extract text from PDF files using backend API
  */
 async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    // Try to read as text (works for some PDFs)
-    const text = await readTextFile(file);
+    // Use backend API for PDF parsing
+    const formData = new FormData();
+    formData.append('file', file);
     
-    if (text && text.trim().length > 0) {
-      return cleanExtractedText(text);
+    const response = await fetch('/api/document/parse', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to parse PDF');
     }
     
-    // If direct text extraction fails, inform user
-    throw new Error('PDF text extraction requires additional processing. Please copy and paste the text instead.');
+    const result = await response.json();
+    
+    if (!result.success || !result.content) {
+      throw new Error(result.error || 'No text content extracted from PDF');
+    }
+    
+    return cleanExtractedText(result.content);
   } catch (error) {
-    throw new Error('Unable to extract text from PDF. Please copy and paste the content instead.');
+    console.error('PDF extraction error:', error);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Unable to extract text from PDF. Please try copying and pasting the content instead.'
+    );
   }
 }
 
 /**
- * Extract text from Office documents
- * Note: This is a placeholder. For production, consider using mammoth.js for DOCX or similar libraries
+ * Extract text from Office documents using backend API
  */
 async function extractTextFromOfficeDocument(file: File): Promise<string> {
   try {
-    // Attempt to read as text (works for some formats)
-    const text = await readTextFile(file);
+    // Use backend API for document parsing
+    const formData = new FormData();
+    formData.append('file', file);
     
-    if (text && text.trim().length > 0) {
-      return cleanExtractedText(text);
+    const response = await fetch('/api/document/parse', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to parse document');
     }
     
-    throw new Error('Office document text extraction requires additional processing. Please copy and paste the text instead.');
+    const result = await response.json();
+    
+    if (!result.success || !result.content) {
+      throw new Error(result.error || 'No text content extracted from document');
+    }
+    
+    return cleanExtractedText(result.content);
   } catch (error) {
-    throw new Error('Unable to extract text from document. Please copy and paste the content instead.');
+    console.error('Document extraction error:', error);
+    throw new Error(
+      error instanceof Error 
+        ? error.message 
+        : 'Unable to extract text from document. Please try copying and pasting the content instead.'
+    );
   }
 }
 
